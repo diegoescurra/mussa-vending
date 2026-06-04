@@ -1,0 +1,16 @@
+services:
+  postgres_inventory:
+    image: postgres:16
+    container_name: postgres_inventory
+    restart: always
+    environment:
+      POSTGRES_DB: inventario_maquinas
+      POSTGRES_USER: inventario_user
+      POSTGRES_PASSWORD: inventario_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_inventory_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_inventory_data:
