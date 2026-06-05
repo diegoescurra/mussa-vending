@@ -19,8 +19,8 @@ export const Productos = () => {
                     </tr>
                 </thead>
                 <tbody>
-                    {data?.map((producto) => (
-                        <tr key={producto.id_producto}>
+                    {data?.map((producto, index) => (
+                        <tr key={producto.id_producto} className={`${index % 2 === 0 ? 'bg-blue-50' : 'bg-white'}`}>
                             <td>{producto.id_producto}</td>
                             <td>{producto.nombre}</td>
                             <td>${producto.precio_venta}</td>
