@@ -3,14 +3,23 @@ import pg from 'pg';
 
 loadEnvFile();
 const { Pool } = pg;
+const connectionString = process.env.DATABASE_URL;
 
 const pool = new Pool({
-    database: process.env.DB_NAME,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    host: process.env.DB_HOST,
-    port: Number(process.env.DB_PORT) || 5432,
-})
+    ...(connectionString
+        ? {
+            connectionString,
+            // Neon requires TLS. Set DB_SSL=false only for a local URL that explicitly needs it.
+            ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false },
+        }
+        : {
+            database: process.env.DB_NAME,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            host: process.env.DB_HOST,
+            port: Number(process.env.DB_PORT) || 5432,
+        }),
+});
 
 
 export const connectDB = async () => {

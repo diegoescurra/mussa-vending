@@ -1,0 +1,26 @@
+import { api } from './api';
+
+export type ReposicionDetallePayload = {
+  id_maquina_producto: number;
+  stock_sistema: number;
+  stock_encontrado: number;
+  cantidad_vendida: number;
+  cantidad_repuesta: number;
+  cantidad_retirada: number;
+  stock_final: number;
+  precio_venta_actual: number;
+  venta_esperada: number;
+};
+
+export type CreateReposicionPayload = {
+  id_maquina: number;
+  dinero_retirado: number;
+  observacion?: string;
+  venta_esperada: number;
+  diferencia_dinero: number;
+  detalles: ReposicionDetallePayload[];
+};
+
+export const reposicionesService = {
+  create: (reposicion: CreateReposicionPayload) => api.post<CreateReposicionPayload>('/reposiciones', reposicion),
+};

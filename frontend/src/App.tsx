@@ -1,18 +1,19 @@
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import './App.css'
-import { Productos } from './components/Productos'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter } from 'react-router-dom';
+import './App.css';
+import { AppRouter } from './router/AppRouter';
+
+const queryClient = new QueryClient();
 
 function App() {
-
   return (
-    <>
-    <QueryClientProvider client={new QueryClient()}>
-     <Productos />
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AppRouter />
+      </BrowserRouter>
     </QueryClientProvider>
-
-    </>
-  )
+  );
 }
 
-export default App
+export default App;

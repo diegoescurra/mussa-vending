@@ -1,0 +1,50 @@
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { AppLayout } from '../components/layout/AppLayout';
+import { InventarioPage } from '../pages/admin/inventario/InventarioPage';
+import { MaquinasPage } from '../pages/admin/maquinas/MaquinasPage';
+import { ProductosPage } from '../pages/admin/productos/ProductosPage';
+import { UsuariosPage } from '../pages/admin/usuarios/UsuariosPage';
+import { ReposicionPage } from '../pages/reposicion/ReposicionPage';
+
+export const AppRouter = () => {
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/admin/productos" replace />} />
+      <Route path="/admin" element={<Navigate to="/admin/productos" replace />} />
+      <Route path="/reposicion" element={<ReposicionPage />} />
+      <Route
+        path="/admin/productos"
+        element={(
+          <AppLayout>
+            <ProductosPage />
+          </AppLayout>
+        )}
+      />
+      <Route
+        path="/admin/maquinas"
+        element={(
+          <AppLayout>
+            <MaquinasPage />
+          </AppLayout>
+        )}
+      />
+      <Route
+        path="/admin/inventario"
+        element={(
+          <AppLayout>
+            <InventarioPage />
+          </AppLayout>
+        )}
+      />
+      <Route
+        path="/admin/usuarios"
+        element={(
+          <AppLayout>
+            <UsuariosPage />
+          </AppLayout>
+        )}
+      />
+      <Route path="*" element={<Navigate to="/admin/productos" replace />} />
+    </Routes>
+  );
+};
