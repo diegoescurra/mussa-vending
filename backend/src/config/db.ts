@@ -1,7 +1,11 @@
 import { loadEnvFile } from 'node:process';
 import pg from 'pg';
 
-loadEnvFile();
+try {
+  loadEnvFile();
+} catch (error) {
+  if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+}
 const { Pool } = pg;
 const connectionString = process.env.DATABASE_URL;
 

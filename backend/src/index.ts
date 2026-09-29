@@ -1,11 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
-import { loadEnvFile } from 'node:process';
 import routes from './routes/routes.js';
 import { errorMiddleware } from './middlewares/error.middleware.js';
-
-loadEnvFile();
 
 const app = express();
 const corsOrigin = process.env.CORS_ORIGIN?.split(',').map((origin) => origin.trim()).filter(Boolean);
