@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
 import { BodegaPage } from '../pages/admin/bodega/BodegaPage';
+import { CamionetasPage } from '../pages/admin/camionetas/CamionetasPage';
+import { CamionetaInventarioPage } from '../pages/admin/camionetas/CamionetaInventarioPage';
 import { InventarioPage } from '../pages/admin/inventario/InventarioPage';
 import { MaquinasPage } from '../pages/admin/maquinas/MaquinasPage';
 import { ProductosPage } from '../pages/admin/productos/ProductosPage';
@@ -13,6 +15,22 @@ export const AppRouter = () => {
       <Route path="/" element={<Navigate to="/admin/productos" replace />} />
       <Route path="/admin" element={<Navigate to="/admin/productos" replace />} />
       <Route path="/reposicion" element={<ReposicionPage />} />
+      <Route
+        path="/admin/camionetas"
+        element={(
+          <AppLayout>
+            <CamionetasPage />
+          </AppLayout>
+        )}
+      />
+      <Route
+        path="/admin/camionetas/:id/inventario"
+        element={(
+          <AppLayout>
+            <CamionetaInventarioPage />
+          </AppLayout>
+        )}
+      />
       <Route
         path="/admin/bodega"
         element={(

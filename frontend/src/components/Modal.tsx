@@ -10,7 +10,7 @@ type ModalProps = {
 export const Modal = ({ title, description, children, onClose }: ModalProps) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-      <div className="w-full max-w-2xl rounded-3xl bg-white p-5 shadow-2xl sm:p-6">
+      <div className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-6">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <h3 className="text-xl font-bold text-slate-950">{title}</h3>

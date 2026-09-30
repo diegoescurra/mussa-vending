@@ -3,6 +3,7 @@ import { api } from './api';
 export type Usuario = {
   id_usuario: number;
   nombre: string;
+  apellido: string;
   email: string;
   rol: string;
   estado: boolean;
