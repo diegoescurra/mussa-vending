@@ -5,6 +5,7 @@ import routeProductos from '../productos/producto.route.js';
 import routeProveedores from '../proveedores/proveedor.route.js';
 import routeReposiciones from '../reposiciones/reposicion.route.js';
 import routeUsuarios from '../usuarios/usuario.route.js';
+import routeBodega from '../bodega/bodega.route.js';
 
 const router = Router();
 
@@ -14,5 +15,6 @@ router.use(routeProductos);
 router.use(routeProveedores);
 router.use(routeReposiciones);
 router.use(routeUsuarios);
+router.use(routeBodega);
 
 export default router;

@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom';
 
-export type SectionId = 'productos' | 'maquinas' | 'inventario-maquinas' | 'usuarios';
+export type SectionId = 'productos' | 'maquinas' | 'inventario-maquinas' | 'bodega' | 'usuarios';
 
 const navigationItems: Array<{ id: SectionId; label: string; description: string; path: string }> = [
   { id: 'productos', label: 'Productos', description: 'Catálogo y precios', path: '/admin/productos' },
   { id: 'maquinas', label: 'Máquinas', description: 'Ubicación y estado', path: '/admin/maquinas' },
   { id: 'inventario-maquinas', label: 'Inventario', description: 'Stock por máquina', path: '/admin/inventario' },
+  { id: 'bodega', label: 'Bodega', description: 'Saldos y movimientos', path: '/admin/bodega' },
   { id: 'usuarios', label: 'Usuarios', description: 'Equipo operativo', path: '/admin/usuarios' },
 ];
 

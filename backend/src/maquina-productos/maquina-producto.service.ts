@@ -13,7 +13,7 @@ const maquinaProductoDetalleQuery = `
     FROM maquina_productos mp
     INNER JOIN maquinas m ON m.id_maquina = mp.id_maquina
     INNER JOIN productos p ON p.id_producto = mp.id_producto
-    LEFT JOIN proveedores pr ON pr.id_proveedor = p.id_proveedor
+    LEFT JOIN proveedor pr ON pr.id_proveedor = p.id_proveedor
 `;
 
 export const getAllMaquinaProductos = async () => {
