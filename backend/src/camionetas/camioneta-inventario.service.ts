@@ -30,7 +30,7 @@ export const getMovimientosCamioneta = async (id: number) => {
             concat_ws(' ', r.nombre, r.apellido) AS repartidor_nombre
      FROM camioneta_movimientos m
      JOIN productos p ON p.id_producto = m.id_producto
-     JOIN usuarios b ON b.id_usuario = m.id_bodeguero
+     LEFT JOIN usuarios b ON b.id_usuario = m.id_bodeguero
      JOIN usuarios r ON r.id_usuario = m.id_repartidor
      WHERE m.id_camioneta = $1 ORDER BY m.id_movimiento DESC`,
     [id],

@@ -12,6 +12,8 @@ import { DataTable } from '../../../components/table/DataTable';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { bodegaService, type BodegaProducto, type BodegaMovimientoDetalle, type CreateBodegaMovimientoPayload } from '../../../services/bodega.service';
 import { EntregaCamionetaModal } from './EntregaCamionetaModal';
+import { ConteoInventarioModal } from '../../../components/ConteoInventarioModal';
+import { ConteosInventario } from '../../../components/ConteosInventario';
 
 const inventarioColumns: ColumnDef<BodegaProducto>[] = [
   { accessorKey: 'producto_nombre', header: 'Producto' },
@@ -42,6 +44,7 @@ export const BodegaPage = () => {
   const movimientos = useQuery({ queryKey: ['bodega-movimientos'], queryFn: bodegaService.getMovimientos });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEntregaOpen, setIsEntregaOpen] = useState(false);
+  const [isConteoOpen, setIsConteoOpen] = useState(false);
   const [entregaSuccess, setEntregaSuccess] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState('');
@@ -99,6 +102,9 @@ export const BodegaPage = () => {
         description="Consulta los saldos y registra entradas o salidas de productos."
         actions={(
           <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => setIsConteoOpen(true)} disabled={!inventario.data?.length || inventario.isError || inventario.isFetching} className="rounded-2xl border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 disabled:opacity-60">
+            Registrar conteo fisico
+          </button>
           <button type="button" onClick={() => { setEntregaSuccess(false); setIsEntregaOpen(true); }} disabled={!inventario.data?.length || inventario.isError || inventario.isFetching || saveMutation.isPending} className="rounded-2xl border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 disabled:opacity-60">
             Entregar a camioneta
           </button>
@@ -125,6 +131,8 @@ export const BodegaPage = () => {
       ) : (
         <DataTable columns={movimientoColumns} data={movimientos.data ?? []} searchPlaceholder="Buscar movimiento..." emptyMessage="No hay movimientos registrados." />
       )}
+      <ConteosInventario />
+      {isConteoOpen ? <ConteoInventarioModal inventario={inventario.data} inventarioReady={inventario.isSuccess && !inventario.isFetching} onClose={() => setIsConteoOpen(false)} /> : null}
       {isEntregaOpen ? <EntregaCamionetaModal inventario={inventario.data} inventarioReady={inventario.isSuccess && !inventario.isFetching} onClose={() => setIsEntregaOpen(false)} onSuccess={() => { setIsEntregaOpen(false); setEntregaSuccess(true); }} /> : null}
       {isModalOpen ? (
         <Modal title="Registrar movimiento" description="Las entradas suman stock y las salidas lo descuentan." onClose={closeModal}>

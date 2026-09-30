@@ -36,9 +36,12 @@ export type CamionetaMovimiento = {
   id_movimiento: number;
   id_camioneta: number;
   id_producto: number;
-  id_bodeguero: number;
+  id_bodeguero: number | null;
   id_repartidor: number;
-  id_movimiento_bodega: number;
+  tipo: 'ENTRADA' | 'SALIDA';
+  id_movimiento_bodega: number | null;
+  id_reposicion: number | null;
+  id_maquina: number | null;
   cantidad: number;
   stock_final: number;
   observacion: string | null;

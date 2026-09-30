@@ -7,6 +7,7 @@ import routeReposiciones from '../reposiciones/reposicion.route.js';
 import routeUsuarios from '../usuarios/usuario.route.js';
 import routeBodega from '../bodega/bodega.route.js';
 import routeCamionetas from '../camionetas/camioneta.route.js';
+import routeConteos from '../conteos/conteo.route.js';
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use(routeReposiciones);
 router.use(routeUsuarios);
 router.use(routeBodega);
 router.use(routeCamionetas);
+router.use(routeConteos);
 
 export default router;

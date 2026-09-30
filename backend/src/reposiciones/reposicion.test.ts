@@ -10,6 +10,7 @@ const mockedService = jest.mocked(service);
 
 const payload = {
   id_maquina: 1,
+  id_repartidor: 2,
   dinero_retirado: 5000,
   venta_esperada: 4500,
   diferencia_dinero: 500,

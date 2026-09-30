@@ -7,7 +7,9 @@ En una base vacia, ejecuta estos archivos en orden desde el editor SQL de Neon:
 3. `migrations/002_create_bodega.sql`
 4. `migrations/003_create_camionetas.sql`
 5. `migrations/004_create_camioneta_inventario.sql`
-6. `seed.sql` para cargar los datos de demostracion.
+6. `migrations/005_create_conteos.sql`
+7. `migrations/006_reposicion_camioneta.sql`
+8. `seed.sql` para cargar los datos de demostracion.
 
 La URL de conexion de Neon se configura como `DATABASE_URL` en Render.
 
@@ -73,4 +75,54 @@ tambien deben estar activos. No hay login, por lo que estos datos no verifican i
 La entrega descuenta de central, suma a camioneta y registra ambos movimientos en
 una sola transaccion. No permite saldos negativos y revierte todo si algo falla.
 El repartidor se guarda en cada movimiento para conservar la asignacion historica.
-Por ahora no incluye devoluciones, limites de carga, faltantes ni reposicion a maquinas.
+Por ahora no incluye devoluciones ni limites de carga.
+
+## Conteos fisicos
+
+- `GET /api/conteos`: historial solamente de bodega central.
+- `GET /api/conteos?id_camioneta=1`: historial de una camioneta existente (tambien inactiva).
+- `POST /api/conteos`: registra un conteo y la diferencia `stock_fisico - stock_esperado`.
+
+```json
+{
+  "id_responsable": 1,
+  "id_producto": 2,
+  "stock_fisico": 0,
+  "observacion": "Conteo al cierre"
+}
+```
+
+Incluye `id_camioneta` para contar una camioneta; omitirlo cuenta central.
+El responsable de central debe ser ADMIN activo. En camioneta puede ser un ADMIN
+activo o el REPONEDOR activo asignado. Productos y camionetas inactivos se admiten
+para auditoria. Identificadores son enteros positivos y el stock fisico es entero
+entre 0 y 2147483647. El responsable se selecciona manualmente; no hay login.
+
+La respuesta incluye `id_conteo`, ubicacion, producto, responsable, `stock_esperado`,
+`stock_fisico`, `diferencia`, `observacion` y `fecha_creacion`. El historial agrega
+`producto_nombre` y `responsable_nombre`. El esperado se captura en una transaccion
+con bloqueo del saldo; un saldo ausente se inicializa en cero.
+Los conteos NO ajustan stock automaticamente ni crean movimientos. No incluyen
+tolerancias ni clasificacion de perdidas. Sus claves foraneas impiden eliminar
+productos, responsables o camionetas con historia; no hay borrado en cascada.
+
+## Reposicion desde camioneta
+
+`POST /api/reposiciones` requiere `id_repartidor` junto a los datos de reposicion.
+El backend obtiene su camioneta asignada; no acepta una camioneta elegida por el cliente.
+Repartidor, camioneta y maquina deben estar activos.
+
+La reposicion descuenta de camioneta solo `cantidad_repuesta`, actualiza el saldo
+de maquina y registra la salida enlazada a la reposicion en una transaccion.
+Se suman las cantidades de todos los espacios del mismo producto antes de descontar.
+No se permite reponer mas del stock disponible ni superar la capacidad de la maquina.
+
+Las unidades retiradas se registran, pero no vuelven automaticamente al stock
+utilizable de camioneta. No se consideran ventas: las ventas estimadas son
+`max(stock_sistema - stock_encontrado, 0)`. Las diferencias en maquinas no se
+clasifican como faltantes porque pueden corresponder a ventas.
+
+La migracion 006 conserva reposiciones historicas sin asignacion; las nuevas
+guardan camioneta y repartidor. El historial de camioneta muestra entradas desde
+central y salidas a maquina. Los conteos de central y camionetas siguen siendo
+informativos, sin tolerancias ni cambios de saldo.

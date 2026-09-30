@@ -14,6 +14,7 @@ export type ReposicionDetallePayload = {
 
 export type CreateReposicionPayload = {
   id_maquina: number;
+  id_repartidor: number;
   dinero_retirado: number;
   observacion?: string;
   venta_esperada: number;
