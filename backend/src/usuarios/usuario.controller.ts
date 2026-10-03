@@ -11,7 +11,24 @@ import type { CreateUsuarioDTO, RolUsuario, UpdateUsuarioDTO } from './usuario.t
 
 const rolesValidos: RolUsuario[] = ['ADMIN', 'REPONEDOR'];
 
-const isValidRol = (rol: string): rol is RolUsuario => rolesValidos.includes(rol as RolUsuario);
+const isValidRol = (rol: unknown): rol is RolUsuario => typeof rol === 'string' && rolesValidos.includes(rol as RolUsuario);
+
+const parseId = (value: unknown) => {
+    const id = Number(value);
+    if (!Number.isInteger(id) || id <= 0 || id > 2147483647) throw new AppError('ID de usuario invalido', 400);
+    return id;
+};
+
+const validatePersonalFields = (fields: { nombre?: unknown; apellido?: unknown; email?: unknown }) => {
+    for (const [field, value] of Object.entries(fields)) {
+        if (value !== undefined && (typeof value !== 'string' || !value.trim())) {
+            throw new AppError(`El campo ${field} debe ser texto no vacio`, 400);
+        }
+    }
+    if (typeof fields.email === 'string' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email.trim())) {
+        throw new AppError('Email invalido', 400);
+    }
+};
 
 export const getUsuariosController = asyncHandler(async (_req, res) => {
     const usuarios = await getAllUsuarios();
@@ -23,7 +40,7 @@ export const getUsuariosController = asyncHandler(async (_req, res) => {
 })
 
 export const getUsuarioByIdController = asyncHandler(async (req, res) => {
-    const id = Number(req.params.id);
+    const id = parseId(req.params.id);
     const usuario = await getUsuarioById(id);
 
     if (!usuario) {
@@ -37,7 +54,7 @@ export const getUsuarioByIdController = asyncHandler(async (req, res) => {
 })
 
 export const createUsuarioController = asyncHandler(async (req, res) => {
-    const { nombre, apellido, email, password_hash = 'pendiente', rol } = req.body;
+    const { nombre, apellido, email, password_hash = 'pendiente', rol } = req.body ?? {};
 
     if (!nombre || !apellido || !email || !password_hash || !rol) {
         throw new AppError('Todos los campos son obligatorios', 400);
@@ -46,11 +63,12 @@ export const createUsuarioController = asyncHandler(async (req, res) => {
     if (!isValidRol(rol)) {
         throw new AppError('Rol invalido', 400);
     }
+    validatePersonalFields({ nombre, apellido, email });
 
     const newUsuario = await createUsuario({
-        nombre,
-        apellido,
-        email,
+        nombre: nombre.trim(),
+        apellido: apellido.trim(),
+        email: email.trim(),
         password_hash,
         rol,
     } as CreateUsuarioDTO);
@@ -62,8 +80,8 @@ export const createUsuarioController = asyncHandler(async (req, res) => {
 })
 
 export const updateUsuarioController = asyncHandler(async (req, res) => {
-    const id = Number(req.params.id);
-    const { nombre, apellido, email, password_hash, rol, estado } = req.body;
+    const id = parseId(req.params.id);
+    const { nombre, apellido, email, password_hash, rol, estado } = req.body ?? {};
 
     if (
         nombre === undefined &&
@@ -79,11 +97,13 @@ export const updateUsuarioController = asyncHandler(async (req, res) => {
     if (rol !== undefined && !isValidRol(rol)) {
         throw new AppError('Rol invalido', 400);
     }
+    validatePersonalFields({ nombre, apellido, email });
+    if (estado !== undefined && typeof estado !== 'boolean') throw new AppError('Estado invalido', 400);
 
     const updatedUsuario = await updateUsuario({
-        nombre,
-        apellido,
-        email,
+        nombre: nombre?.trim(),
+        apellido: apellido?.trim(),
+        email: email?.trim(),
         password_hash,
         rol,
         estado,
@@ -96,7 +116,7 @@ export const updateUsuarioController = asyncHandler(async (req, res) => {
 })
 
 export const deleteUsuarioController = asyncHandler(async (req, res) => {
-    const id = Number(req.params.id);
+    const id = parseId(req.params.id);
     const usuario = await getUsuarioById(id);
 
     if (!usuario) {

@@ -12,12 +12,14 @@ export type Usuario = {
 
 export type CreateUsuarioDTO = {
   nombre: string;
+  apellido: string;
   email: string;
   rol: string;
 };
 
 export type UpdateUsuarioDTO = {
   nombre?: string;
+  apellido?: string;
   email?: string;
   rol?: string;
   estado?: boolean;
