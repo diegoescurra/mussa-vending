@@ -31,5 +31,10 @@ export const useInventarioCrud = (onDone: () => void) => {
     updateInventario: updateMutation.mutate,
     deleteInventario: deleteMutation.mutate,
     isSaving: createMutation.isPending || updateMutation.isPending,
+    saveError: createMutation.error ?? updateMutation.error,
+    resetSave: () => {
+      createMutation.reset();
+      updateMutation.reset();
+    },
   };
 };

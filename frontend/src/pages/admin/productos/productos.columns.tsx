@@ -7,9 +7,10 @@ import type { Producto } from '../../../services/productos.service';
 type ProductoColumnsParams = {
   onEdit: (producto: Producto) => void;
   onDelete: (producto: Producto) => void;
+  isDeleting: boolean;
 };
 
-export const createProductoColumns = ({ onEdit, onDelete }: ProductoColumnsParams): ColumnDef<Producto>[] => [
+export const createProductoColumns = ({ onEdit, onDelete, isDeleting }: ProductoColumnsParams): ColumnDef<Producto>[] => [
   { accessorKey: 'id_producto', header: 'ID' },
   { accessorKey: 'nombre', header: 'Nombre' },
   {
@@ -30,6 +31,6 @@ export const createProductoColumns = ({ onEdit, onDelete }: ProductoColumnsParam
   {
     id: 'acciones',
     header: 'Acciones',
-    cell: ({ row }) => <RowActions onEdit={() => onEdit(row.original)} onDelete={() => onDelete(row.original)} />,
+    cell: ({ row }) => <RowActions onEdit={() => onEdit(row.original)} onDelete={() => onDelete(row.original)} deleteDisabled={isDeleting} />,
   },
 ];

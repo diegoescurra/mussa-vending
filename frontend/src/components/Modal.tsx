@@ -5,9 +5,10 @@ type ModalProps = {
   description?: string;
   children: ReactNode;
   onClose: () => void;
+  closeDisabled?: boolean;
 };
 
-export const Modal = ({ title, description, children, onClose }: ModalProps) => {
+export const Modal = ({ title, description, children, onClose, closeDisabled = false }: ModalProps) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
       <div className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-6">
@@ -19,7 +20,8 @@ export const Modal = ({ title, description, children, onClose }: ModalProps) => 
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+            disabled={closeDisabled}
+            className="rounded-full border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Cerrar
           </button>

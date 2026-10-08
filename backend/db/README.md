@@ -15,6 +15,23 @@ La URL de conexion de Neon se configura como `DATABASE_URL` en Render.
 
 Si la base ya existe, ejecuta solamente las migraciones que aun no hayas aplicado.
 
+## Catalogo real
+
+Para cargar los proveedores y productos reales en Neon, ejecuta
+`seed-productos-reales.sql` desde el editor SQL, despues de crear las tablas
+`proveedores` y `productos`. No requiere ejecutar el seed de demostracion.
+
+El script crea primero los proveedores y luego vincula cada producto usando
+su nombre de proveedor. Usa `proveedores` (plural), como el esquema de Neon.
+Conserva los costos y precios informados, incluidos los costos cero.
+Los dos TUAREG se identifican como `TUAREG (CASO)` y `TUAREG (SERFEL)`
+porque los nombres de productos son unicos.
+
+La carga es transaccional y puede repetirse sin duplicados. Si ya existe un
+proveedor o producto con el mismo nombre, no se modifica ni se reactiva.
+No elimina productos de demostracion ni asigna productos a maquinas, bodega
+o camionetas. Tampoco carga existencias.
+
 ## Bodega
 
 - `GET /api/bodega`: saldo de todos los productos, incluyendo los que aun tienen stock cero.

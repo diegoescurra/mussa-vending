@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { productosService, type CreateProductoDTO } from '../../../services/productos.service';
+import { productosService, type CreateProductoDTO, type Producto } from '../../../services/productos.service';
 
 export const useProductosCrud = (onDone: () => void) => {
   const queryClient = useQueryClient();
@@ -22,7 +22,7 @@ export const useProductosCrud = (onDone: () => void) => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: productosService.delete,
+    mutationFn: (producto: Pick<Producto, 'id_producto' | 'nombre'>) => productosService.delete(producto.id_producto),
     onSuccess: invalidateProductos,
   });
 
@@ -30,6 +30,10 @@ export const useProductosCrud = (onDone: () => void) => {
     createProducto: createMutation.mutate,
     updateProducto: updateMutation.mutate,
     deleteProducto: deleteMutation.mutate,
+    deleteError: deleteMutation.error,
+    deleteProductoName: deleteMutation.variables?.nombre,
+    isDeleting: deleteMutation.isPending,
+    resetDelete: deleteMutation.reset,
     isSaving: createMutation.isPending || updateMutation.isPending,
   };
 };

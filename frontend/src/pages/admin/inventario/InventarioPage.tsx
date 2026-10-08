@@ -39,21 +39,27 @@ export const InventarioPage = () => {
     setForm(emptyInventarioForm);
   };
 
-  const { createInventario, updateInventario, deleteInventario, isSaving } = useInventarioCrud(closeModal);
+  const { createInventario, updateInventario, deleteInventario, isSaving, saveError, resetSave } = useInventarioCrud(closeModal);
 
   const openCreateModal = () => {
+    if (isSaving) return;
+    resetSave();
     setEditingItem(null);
     setForm({ ...emptyInventarioForm, id_maquina: activeMachineId });
     setIsModalOpen(true);
   };
 
   const openEditModal = (item: MaquinaProductoDetalle) => {
+    if (isSaving) return;
+    resetSave();
     setEditingItem(item);
     setForm(inventarioToForm(item));
     setIsModalOpen(true);
   };
 
   const submitForm = () => {
+    if (isSaving) return;
+    resetSave();
     if (editingItem) {
       updateInventario({ id: editingItem.id_maquina_producto, payload: inventarioFormToUpdatePayload(form) });
       return;
@@ -115,9 +121,14 @@ export const InventarioPage = () => {
           editingItem={editingItem}
           isLoadingProductos={isLoadingProductos}
           isSaving={isSaving}
+          saveError={saveError?.message}
           onChange={setForm}
           onSubmit={submitForm}
-          onClose={closeModal}
+          onClose={() => {
+            if (isSaving) return;
+            closeModal();
+            resetSave();
+          }}
         />
       ) : null}
     </section>

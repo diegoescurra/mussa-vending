@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 type SelectOption = {
   value: string | number;
   label: string;
@@ -13,6 +15,7 @@ type SelectFieldProps = {
   placeholder?: string;
   className?: string;
   hint?: string;
+  error?: string;
 };
 
 export const SelectField = ({
@@ -25,7 +28,9 @@ export const SelectField = ({
   placeholder,
   className = '',
   hint,
+  error,
 }: SelectFieldProps) => {
+  const descriptionId = useId();
   return (
     <label className={`grid gap-2 text-sm font-medium text-slate-700 ${className}`}>
       {label}
@@ -33,8 +38,10 @@ export const SelectField = ({
         required={required}
         disabled={disabled}
         value={value}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error || hint ? descriptionId : undefined}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:bg-slate-100"
+        className={`min-w-0 rounded-2xl border px-4 py-3 outline-none focus:ring-4 disabled:bg-slate-100 ${error ? 'border-red-400 focus:border-red-500 focus:ring-red-100' : 'border-slate-200 focus:border-blue-500 focus:ring-blue-100'}`}
       >
         {placeholder ? <option value="">{placeholder}</option> : null}
         {options.map((option) => (
@@ -43,7 +50,7 @@ export const SelectField = ({
           </option>
         ))}
       </select>
-      {hint ? <span className="text-xs text-amber-700">{hint}</span> : null}
+      {error || hint ? <span id={descriptionId} className={`text-xs ${error ? 'text-red-700' : 'text-amber-700'}`}>{error || hint}</span> : null}
     </label>
   );
 };

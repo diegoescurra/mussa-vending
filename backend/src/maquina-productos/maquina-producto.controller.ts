@@ -7,7 +7,7 @@ import {
     getMaquinaProductoById,
     updateMaquinaProducto,
 } from "./maquina-producto.service.js";
-import type { CreateMaquinaProductoDTO, UpdateMaquinaProductoDTO } from "./maquina-producto.type.js";
+import { validateMaquinaProducto, validateMaquinaProductoId } from "./maquina-producto.validation.js";
 
 export const getMaquinaProductosController = asyncHandler(async (_req, res) => {
     const maquinaProductos = await getAllMaquinaProductos();
@@ -32,19 +32,8 @@ export const getMaquinaProductoByIdController = asyncHandler(async (req, res) =>
 })
 
 export const createMaquinaProductoController = asyncHandler(async (req, res) => {
-    const { id_maquina, id_producto, capacidad_maxima, stock_actual, precio_venta_actual } = req.body;
-
-    if (!id_maquina || !id_producto || capacidad_maxima === undefined || stock_actual === undefined || precio_venta_actual === undefined) {
-        throw new AppError('Todos los campos son obligatorios', 400);
-    }
-
-    const newMaquinaProducto = await createMaquinaProducto({
-        id_maquina,
-        id_producto,
-        capacidad_maxima,
-        stock_actual,
-        precio_venta_actual,
-    } as CreateMaquinaProductoDTO);
+    validateMaquinaProducto(req.body, true);
+    const newMaquinaProducto = await createMaquinaProducto(req.body);
 
     res.status(201).json({
         status: 'success',
@@ -53,19 +42,13 @@ export const createMaquinaProductoController = asyncHandler(async (req, res) => 
 })
 
 export const updateMaquinaProductoController = asyncHandler(async (req, res) => {
-    const id = Number(req.params.id);
-    const { capacidad_maxima, stock_actual, precio_venta_actual, estado } = req.body;
-
-    if (capacidad_maxima === undefined && stock_actual === undefined && precio_venta_actual === undefined && estado === undefined) {
-        throw new AppError('Debe enviar al menos un campo para actualizar', 400);
+    if (typeof req.params.id !== 'string' || !/^\d+$/.test(req.params.id)) {
+        throw new AppError('Seleccione una asignacion valida', 400);
     }
-
-    const updatedMaquinaProducto = await updateMaquinaProducto({
-        capacidad_maxima,
-        stock_actual,
-        precio_venta_actual,
-        estado,
-    } as UpdateMaquinaProductoDTO, id);
+    const id = Number(req.params.id);
+    validateMaquinaProductoId(id);
+    validateMaquinaProducto(req.body, false);
+    const updatedMaquinaProducto = await updateMaquinaProducto(req.body, id);
 
     res.json({
         status: 'success',

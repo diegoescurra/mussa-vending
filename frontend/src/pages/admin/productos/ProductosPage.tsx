@@ -23,7 +23,7 @@ export const ProductosPage = () => {
     setForm(emptyProductoForm);
   };
 
-  const { createProducto, updateProducto, deleteProducto, isSaving } = useProductosCrud(closeModal);
+  const { createProducto, updateProducto, deleteProducto, isSaving, deleteError, deleteProductoName, isDeleting, resetDelete } = useProductosCrud(closeModal);
 
   const openCreateModal = () => {
     setEditingProducto(null);
@@ -49,8 +49,9 @@ export const ProductosPage = () => {
   };
 
   const handleDelete = (producto: Producto) => {
+    if (isDeleting) return;
     if (window.confirm(`¿Eliminar el producto "${producto.nombre}"?`)) {
-      deleteProducto(producto.id_producto);
+      deleteProducto(producto);
     }
   };
 
@@ -68,7 +69,19 @@ export const ProductosPage = () => {
           </button>
         )}
       />
-      <DataTable columns={createProductoColumns({ onEdit: openEditModal, onDelete: handleDelete })} data={data} searchPlaceholder="Buscar producto..." emptyMessage="No hay productos registrados" />
+      {deleteError ? (
+        <div role="alert" className="mb-4 flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-900 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 className="font-semibold">No se pudo eliminar "{deleteProductoName}"</h3>
+            <p className="mt-1 text-sm leading-6">{deleteError.message}</p>
+          </div>
+          <button type="button" onClick={resetDelete} className="shrink-0 self-start rounded-xl border border-red-200 px-3 py-1.5 text-sm font-semibold hover:bg-red-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700">
+            Cerrar aviso
+          </button>
+        </div>
+      ) : null}
+      {isDeleting ? <p role="status" className="mb-4 text-sm text-slate-600">Eliminando "{deleteProductoName}"...</p> : null}
+      <DataTable columns={createProductoColumns({ onEdit: openEditModal, onDelete: handleDelete, isDeleting })} data={data} searchPlaceholder="Buscar producto..." emptyMessage="No hay productos registrados" />
       {isModalOpen ? (
         <ProductoFormModal
           form={form}

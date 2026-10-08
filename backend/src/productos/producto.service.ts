@@ -38,5 +38,12 @@ export const updateProducto = async (producto: UpdateProductoDTO, id: number) =>
 }
 
 export const deleteProducto = async (id: number) => {
-    await pool.query('DELETE FROM productos WHERE id_producto = $1', [id]);
+    try {
+        await pool.query('DELETE FROM productos WHERE id_producto = $1', [id]);
+    } catch (error) {
+        if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23503') {
+            throw new AppError('No se puede eliminar este producto porque esta asociado a inventario o tiene historial registrado.', 409);
+        }
+        throw error;
+    }
 }
