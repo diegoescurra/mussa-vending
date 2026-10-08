@@ -1,8 +1,9 @@
 import { NavLink } from 'react-router-dom';
 
-export type SectionId = 'productos' | 'maquinas' | 'inventario-maquinas' | 'bodega' | 'usuarios' | 'camionetas';
+export type SectionId = 'dashboard' | 'productos' | 'maquinas' | 'inventario-maquinas' | 'bodega' | 'usuarios' | 'camionetas';
 
 const navigationItems: Array<{ id: SectionId; label: string; description: string; path: string }> = [
+  { id: 'dashboard', label: 'Inicio', description: 'Resumen de la operación', path: '/admin/dashboard' },
   { id: 'productos', label: 'Productos', description: 'Catálogo y precios', path: '/admin/productos' },
   { id: 'maquinas', label: 'Máquinas', description: 'Ubicación y estado', path: '/admin/maquinas' },
   { id: 'inventario-maquinas', label: 'Inventario', description: 'Stock por máquina', path: '/admin/inventario' },

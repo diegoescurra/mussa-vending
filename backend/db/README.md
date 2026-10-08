@@ -126,3 +126,36 @@ La migracion 006 conserva reposiciones historicas sin asignacion; las nuevas
 guardan camioneta y repartidor. El historial de camioneta muestra entradas desde
 central y salidas a maquina. Los conteos de central y camionetas siguen siendo
 informativos, sin tolerancias ni cambios de saldo.
+
+## Dashboard
+
+`GET /api/dashboard?desde=2026-10-01&hasta=2026-10-08` devuelve
+`{ "status": "success", "data": { ... } }`, igual que los otros endpoints.
+Ambas fechas son obligatorias, reales y con formato `YYYY-MM-DD`.
+Desde no puede ser posterior a hasta; ambos dias se incluyen en horario
+`America/Santiago`, incluso cuando cambia el horario de verano.
+
+La respuesta contiene `periodo`, `indicadores`, `maquinas`, `stock`, `atencion`
+y `ultimas_visitas`. Los indicadores y las ultimas 10 visitas corresponden al
+periodo; estados de maquinas, alertas y ultima visita por maquina son actuales
+o de todo el historial, no se limitan al filtro.
+
+- Venta estimada: suma de `venta_esperada` registrada en las visitas, no ventas en tiempo real.
+- Diferencia de caja: dinero retirado menos venta estimada; no confirma una perdida.
+- Visitas: incluye registros sin unidades repuestas.
+- Agotados: slots activos con stock cero, en maquinas y productos activos.
+- Bajos: slots activos con stock positivo y hasta el 20 % de capacidad positiva.
+- Atencion: maquinas activas con alertas, primero por agotados y luego por bajos.
+
+Una solicitud HTTP ejecuta cuatro consultas independientes en paralelo:
+indicadores de cabeceras, estados de maquinas, alertas y visitas recientes.
+Los importes se suman sin unir detalles para evitar duplicar dinero por producto.
+El dashboard no modifica saldos ni requiere tablas nuevas; necesita las tablas
+de reposiciones y las columnas de la migracion 006 del backend actual.
+
+El frontend separa el servicio HTTP (`dashboard.service.ts`), la consulta y cache
+(`useDashboard.ts`) y la presentacion (`DashboardPage.tsx`). Consultar al entrar,
+aplicar un rango o pulsar Actualizar no requiere descargar todos los inventarios.
+Editar una fecha no llama a la API hasta aplicar el formulario. React Query
+identifica cada resumen con `['dashboard', desde, hasta]`, actualiza al montar
+y tambien puede reconsultar al recuperar foco o conexion si el dato esta vencido.

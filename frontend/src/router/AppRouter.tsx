@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
+import { DashboardPage } from '../pages/admin/dashboard/DashboardPage';
 import { BodegaPage } from '../pages/admin/bodega/BodegaPage';
 import { CamionetasPage } from '../pages/admin/camionetas/CamionetasPage';
 import { CamionetaInventarioPage } from '../pages/admin/camionetas/CamionetaInventarioPage';
@@ -12,8 +13,16 @@ import { ReposicionPage } from '../pages/reposicion/ReposicionPage';
 export const AppRouter = () => {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/admin/productos" replace />} />
-      <Route path="/admin" element={<Navigate to="/admin/productos" replace />} />
+      <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+      <Route
+        path="/admin/dashboard"
+        element={(
+          <AppLayout>
+            <DashboardPage />
+          </AppLayout>
+        )}
+      />
       <Route path="/reposicion" element={<ReposicionPage />} />
       <Route
         path="/admin/camionetas"
@@ -71,7 +80,7 @@ export const AppRouter = () => {
           </AppLayout>
         )}
       />
-      <Route path="*" element={<Navigate to="/admin/productos" replace />} />
+      <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
     </Routes>
   );
 };

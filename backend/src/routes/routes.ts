@@ -8,6 +8,7 @@ import routeUsuarios from '../usuarios/usuario.route.js';
 import routeBodega from '../bodega/bodega.route.js';
 import routeCamionetas from '../camionetas/camioneta.route.js';
 import routeConteos from '../conteos/conteo.route.js';
+import routeDashboard from '../dashboard/dashboard.route.js';
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use(routeUsuarios);
 router.use(routeBodega);
 router.use(routeCamionetas);
 router.use(routeConteos);
+router.use(routeDashboard);
 
 export default router;
