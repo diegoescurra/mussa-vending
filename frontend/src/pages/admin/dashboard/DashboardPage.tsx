@@ -2,14 +2,11 @@ import { useState, type FormEvent } from 'react';
 import { PageHeader } from '../../../components/PageHeader';
 import { MoneyText } from '../../../components/ui/MoneyText';
 import { useDashboard } from '../../../hooks/useDashboard';
+import { CashEvolutionChart } from './CashEvolutionChart';
+import { CashDifferencesPanel, ProvidersPanel } from './DashboardDataPanels';
+import { cellClass, formatDate, headingClass, panelClass } from './dashboardPresentation';
 
 const timeZone = 'America/Santiago';
-const dateFormatter = new Intl.DateTimeFormat('es-CL', {
-  timeZone, day: '2-digit', month: '2-digit', year: 'numeric',
-});
-const dateTimeFormatter = new Intl.DateTimeFormat('es-CL', {
-  timeZone, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-});
 
 const initialPeriod = () => {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -21,17 +18,7 @@ const initialPeriod = () => {
   return { desde: `${year}-${month}-01`, hasta: `${year}-${month}-${day}` };
 };
 
-const formatDate = (value: string) => {
-  // A date-only value is a calendar day, not midnight UTC (the previous day in Santiago).
-  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
-  const date = new Date(dateOnly ? `${value}T12:00:00Z` : value);
-  return dateOnly ? dateFormatter.format(date) : dateTimeFormatter.format(date);
-};
-
-const panelClass = 'rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6';
 const buttonClass = 'rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-60';
-const cellClass = 'border-b border-slate-100 px-4 py-4 text-slate-700';
-const headingClass = 'whitespace-nowrap border-b border-slate-200 px-4 py-3 font-semibold';
 
 export const DashboardPage = () => {
   const [applied, setApplied] = useState(initialPeriod);
@@ -60,7 +47,7 @@ export const DashboardPage = () => {
       <PageHeader
         title="Inicio"
         eyebrow="Dashboard"
-        description="Resumen de caja, visitas y estado operativo."
+        description="Caja, estimaciones por proveedor y prioridades operativas."
         actions={<button type="button" className={buttonClass} disabled={dashboard.isFetching} onClick={() => { void dashboard.refetch(); }}>Actualizar</button>}
       />
 
@@ -93,14 +80,14 @@ export const DashboardPage = () => {
             Periodo: <time dateTime={data.periodo.desde}>{formatDate(data.periodo.desde)}</time> al <time dateTime={data.periodo.hasta}>{formatDate(data.periodo.hasta)}</time>, ambos inclusive. Fechas y horas en Santiago.
             {dashboard.isFetching ? ' Los valores visibles estan pendientes de actualizar.' : ''}
           </p>
-          <dl className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <dl className="grid gap-px overflow-hidden rounded-3xl border border-slate-200 bg-slate-200 shadow-sm sm:grid-cols-2 xl:grid-cols-4">
             {[
               { label: 'Dinero retirado', value: data.indicadores.dinero_retirado, money: true },
               { label: 'Venta estimada', value: data.indicadores.venta_estimada, money: true },
               { label: 'Diferencia de caja', value: data.indicadores.diferencia_caja, money: true },
               { label: 'Visitas', value: data.indicadores.visitas, money: false },
             ].map((metric) => (
-              <div key={metric.label} className={panelClass}>
+              <div key={metric.label} className="min-w-0 bg-white p-5 sm:p-6">
                 <dt className="text-sm text-slate-600">{metric.label}</dt>
                 <dd className={`mt-3 break-words text-2xl font-bold tabular-nums ${metric.label === 'Diferencia de caja' && metric.value < 0 ? 'text-red-700' : 'text-slate-950'}`}>{metric.money ? <MoneyText value={metric.value} /> : metric.value}</dd>
               </div>
@@ -111,6 +98,10 @@ export const DashboardPage = () => {
             {' '}Diferencia de caja = dinero retirado menos venta estimada. Un valor negativo indica que se registro menos dinero del esperado,
             no unidades retiradas ni una perdida confirmada. Las visitas sin unidades repuestas tambien se cuentan.
           </p>
+
+          <CashEvolutionChart rows={data.evolucion} />
+          <ProvidersPanel providers={data.proveedores} />
+          <CashDifferencesPanel rows={data.diferencias_maquinas} />
 
           <div className="grid gap-6 xl:grid-cols-2">
             <section className={panelClass} aria-labelledby="dashboard-maquinas">

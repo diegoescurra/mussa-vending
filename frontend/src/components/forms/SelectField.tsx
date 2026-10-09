@@ -37,6 +37,7 @@ export const SelectField = ({
       <select
         required={required}
         disabled={disabled}
+        aria-label={label}
         value={value}
         aria-invalid={Boolean(error)}
         aria-describedby={error || hint ? descriptionId : undefined}

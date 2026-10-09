@@ -20,6 +20,7 @@ export const NumberField = ({ label, value, onChange, required = false, classNam
       <input
         required={required}
         type="number"
+        aria-label={label}
         min={min}
         max={max}
         step={step}

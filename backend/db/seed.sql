@@ -15,7 +15,7 @@ VALUES
   ('Papas fritas', 1200, 600, (SELECT id_proveedor FROM proveedores WHERE nombre = 'Snacks Demo'))
 ON CONFLICT (nombre) DO NOTHING;
 
-INSERT INTO maquinas_productos (id_maquina, id_producto, capacidad_maxima, stock_actual, precio_venta_actual)
+INSERT INTO maquina_productos (id_maquina, id_producto, capacidad_maxima, stock_actual, precio_venta_actual)
 VALUES
   ((SELECT id_maquina FROM maquinas WHERE codigo = 'M-001'), (SELECT id_producto FROM productos WHERE nombre = 'Agua mineral 500 ml'), 20, 12, 1000),
   ((SELECT id_maquina FROM maquinas WHERE codigo = 'M-001'), (SELECT id_producto FROM productos WHERE nombre = 'Bebida cola 500 ml'), 20, 10, 1500),

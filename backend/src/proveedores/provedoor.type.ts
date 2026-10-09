@@ -10,6 +10,6 @@ export interface CreateProveedorDTO {
 }
 
 export interface UpdateProveedorDTO {
-  nombre?: string;
-  estado?: boolean;
+  nombre: string;
+  estado: boolean;
 }

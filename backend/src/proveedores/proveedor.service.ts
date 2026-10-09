@@ -14,11 +14,18 @@ export const getProveedorById = async (id: number) => {
 
 export const createProveedor = async (proveedor: CreateProveedorDTO) => {
     const { nombre } = proveedor;
-    const { rows } = await pool.query(
-        'INSERT INTO proveedores (nombre) VALUES ($1) RETURNING *',
-        [nombre]
-    );
-    return rows[0];
+    try {
+        const { rows } = await pool.query(
+            'INSERT INTO proveedores (nombre) VALUES ($1) RETURNING *',
+            [nombre]
+        );
+        return rows[0];
+    } catch (error) {
+        if ((error as { code?: string })?.code === '23505') {
+            throw new AppError('Ya existe un proveedor con ese nombre', 409);
+        }
+        throw error;
+    }
 }
 
 export const updateProveedor = async (proveedor: UpdateProveedorDTO, id: number) => {
@@ -29,12 +36,19 @@ export const updateProveedor = async (proveedor: UpdateProveedorDTO, id: number)
         throw new AppError('Proveedor no encontrado', 404);
     }
 
-    const { rows } = await pool.query(
-        'UPDATE proveedores SET nombre = $1, estado = $2 WHERE id_proveedor = $3 RETURNING *',
-        [nombre, estado, id]
-    );
-
-    return rows[0];
+    try {
+        const { rows } = await pool.query(
+            'UPDATE proveedores SET nombre = $1, estado = $2 WHERE id_proveedor = $3 RETURNING *',
+            [nombre, estado, id]
+        );
+        if (!rows[0]) throw new AppError('Proveedor no encontrado', 404);
+        return rows[0];
+    } catch (error) {
+        if ((error as { code?: string })?.code === '23505') {
+            throw new AppError('Ya existe un proveedor con ese nombre', 409);
+        }
+        throw error;
+    }
 }
 
 export const deleteProveedor = async (id: number) => {

@@ -1,4 +1,5 @@
 BEGIN;
+SELECT pg_advisory_xact_lock(734821, 1);
 
 INSERT INTO proveedores (nombre)
 VALUES

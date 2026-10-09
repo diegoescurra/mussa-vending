@@ -7,6 +7,7 @@ import { CamionetaInventarioPage } from '../pages/admin/camionetas/CamionetaInve
 import { InventarioPage } from '../pages/admin/inventario/InventarioPage';
 import { MaquinasPage } from '../pages/admin/maquinas/MaquinasPage';
 import { ProductosPage } from '../pages/admin/productos/ProductosPage';
+import { ProveedoresPage } from '../pages/admin/proveedores/ProveedoresPage';
 import { UsuariosPage } from '../pages/admin/usuarios/UsuariosPage';
 import { ReposicionPage } from '../pages/reposicion/ReposicionPage';
 
@@ -24,6 +25,7 @@ export const AppRouter = () => {
         )}
       />
       <Route path="/reposicion" element={<ReposicionPage />} />
+      <Route path="/admin/proveedores" element={<AppLayout><ProveedoresPage /></AppLayout>} />
       <Route
         path="/admin/camionetas"
         element={(

@@ -43,7 +43,9 @@ export const ProductoFormModal = ({
           required
           value={form.id_proveedor}
           placeholder="Selecciona un proveedor"
-          options={proveedores.map((proveedor) => ({ value: proveedor.id_proveedor, label: proveedor.nombre }))}
+          options={proveedores
+            .filter((proveedor) => proveedor.estado || proveedor.id_proveedor === editingProducto?.id_proveedor)
+            .map((proveedor) => ({ value: proveedor.id_proveedor, label: `${proveedor.nombre}${proveedor.estado ? '' : ' (inactivo)'}` }))}
           onChange={(id_proveedor) => onChange({ ...form, id_proveedor })}
           className="sm:col-span-2"
         />

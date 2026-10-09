@@ -24,4 +24,37 @@ export interface Dashboard {
     unidades_repuestas: number;
     dinero_retirado: number;
   }>;
+  evolucion: Array<{
+    fecha: string;
+    dinero_retirado: number;
+    venta_estimada: number;
+    visitas: number;
+  }>;
+  diferencias_maquinas: Array<{
+    id_maquina: number;
+    nombre: string;
+    dinero_retirado: number;
+    venta_estimada: number;
+    diferencia_caja: number;
+    visitas: number;
+  }>;
+  proveedores: {
+    activos: number;
+    inactivos: number;
+    productos_sin_proveedor: number;
+    venta_estimada: number;
+    costo_estimado: number;
+    margen_estimado: number;
+    productos_costo_cero: number;
+    detalle: Array<{
+      id_proveedor: number | null;
+      nombre: string;
+      productos: number;
+      unidades_vendidas: number;
+      venta_estimada: number;
+      costo_estimado: number;
+      margen_estimado: number;
+      productos_costo_cero: number;
+    }>;
+  };
 }

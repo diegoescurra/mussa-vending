@@ -7,7 +7,7 @@ import {
     getProveedorById,
     updateProveedor,
 } from "./proveedor.service.js";
-import type { CreateProveedorDTO, UpdateProveedorDTO } from "./provedoor.type.js";
+import { validateProveedorBody, validateProveedorId } from './proveedor.validation.js';
 
 export const getProveedoresController = asyncHandler(async (_req, res) => {
     const proveedores = await getAllProveedores();
@@ -18,7 +18,7 @@ export const getProveedoresController = asyncHandler(async (_req, res) => {
 })
 
 export const getProveedorByIdController = asyncHandler(async (req, res) => {
-    const id = Number(req.params.id);
+    const id = validateProveedorId(req.params.id);
     const proveedor = await getProveedorById(id);
 
     if (!proveedor) {
@@ -32,13 +32,8 @@ export const getProveedorByIdController = asyncHandler(async (req, res) => {
 })
 
 export const createProveedorController = asyncHandler(async (req, res) => {
-    const { nombre } = req.body;
-
-    if (!nombre) {
-        throw new AppError('Todos los campos son obligatorios', 400);
-    }
-
-    const newProveedor = await createProveedor({ nombre } as CreateProveedorDTO);
+    const { nombre } = validateProveedorBody(req.body);
+    const newProveedor = await createProveedor({ nombre });
 
     res.status(201).json({
         status: 'success',
@@ -47,14 +42,9 @@ export const createProveedorController = asyncHandler(async (req, res) => {
 })
 
 export const updateProveedorController = asyncHandler(async (req, res) => {
-    const id = Number(req.params.id);
-    const { nombre, estado } = req.body;
-
-    if (!nombre || estado === undefined) {
-        throw new AppError('Todos los campos son obligatorios', 400);
-    }
-
-    const updatedProveedor = await updateProveedor({ nombre, estado } as UpdateProveedorDTO, id);
+    const id = validateProveedorId(req.params.id);
+    const payload = validateProveedorBody(req.body, true);
+    const updatedProveedor = await updateProveedor(payload, id);
 
     res.json({
         status: 'success',
@@ -63,7 +53,7 @@ export const updateProveedorController = asyncHandler(async (req, res) => {
 })
 
 export const deleteProveedorController = asyncHandler(async (req, res) => {
-    const id = Number(req.params.id);
+    const id = validateProveedorId(req.params.id);
     const proveedor = await getProveedorById(id);
 
     if (!proveedor) {
