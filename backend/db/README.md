@@ -341,12 +341,22 @@ conteos de catalogo y ultima visita por maquina no se limitan al filtro.
 - Bajos: slots activos con stock positivo y hasta el 20 % de capacidad positiva.
 - Atencion: maquinas activas con alertas, primero por agotados y luego por bajos.
 
-Una solicitud HTTP ejecuta ocho consultas independientes en paralelo:
+Una solicitud HTTP ejecuta diez consultas independientes en paralelo:
 indicadores de cabeceras, estados de maquinas, alertas, visitas recientes,
 evolucion diaria, diferencias por maquina, resumen actual de proveedores y
-detalle de ventas/margen por proveedor. Los importes de caja se suman sin unir
+detalle de ventas/margen por proveedor, indicadores del periodo anterior y
+ranking de productos. Los importes de caja se suman sin unir
 detalles para evitar duplicar dinero por producto. Los graficos reutilizan
 esta respuesta, no realizan llamadas adicionales.
+
+`anterior` contiene los indicadores del periodo inmediatamente anterior de igual
+cantidad de dias calendario, con limites de medianoche en Santiago. No se muestra
+variacion porcentual si no hubo visitas anteriores o la base anterior es cero.
+`productos` contiene los cinco productos con mas unidades vendidas estimadas,
+desempatados por venta estimada e ID. Suma los importes historicos de los detalles,
+sin recalcular con precios actuales; las visitas sin detalles no contribuyen.
+Las prioridades de reposicion son alta si hay slots agotados y media si solo hay
+slots bajos. Los enlaces abren `/admin/inventario?maquina=ID` para revisar esa maquina.
 
 El margen bruto estimado es la venta esperada de detalles menos cantidad
 vendida estimada por costo de compra actual. La atribucion usa el proveedor
