@@ -1,4 +1,5 @@
 export type EstadoMaquina = 'ACTIVA' | 'INACTIVA' | 'MANTENCION';
+export type SistemaPago = 'MONEDA' | 'BILLETE' | 'TARJETA';
 
 export type Maquina = {
     id_maquina: number;
@@ -7,6 +8,8 @@ export type Maquina = {
     descripcion: string;
     ubicacion: string;
     estado: EstadoMaquina;
+    modelo: string;
+    sistemas_pago: SistemaPago[];
     fecha_creacion: Date;
 }
 
@@ -16,12 +19,8 @@ export type CreateMaquinaDTO = {
     descripcion: string;
     ubicacion: string;
     estado: EstadoMaquina;
+    modelo: string;
+    sistemas_pago: SistemaPago[];
 }
 
-export type UpdateMaquinaDTO = {
-    codigo?: string;
-    nombre?: string;
-    descripcion?: string;
-    ubicacion?: string;
-    estado?: EstadoMaquina;
-}
+export type UpdateMaquinaDTO = CreateMaquinaDTO;

@@ -65,6 +65,34 @@ describe('reposicion from assigned truck', () => {
     expect(release).toHaveBeenCalledTimes(1);
   });
 
+  it('persists the visit price and sale amount as historical values', async () => {
+    const response = await request(app).post('/api/reposiciones').send(payload);
+    expect(response.status).toBe(201);
+    expect(response.body.data.detalles[0]).toMatchObject({ precio_venta_actual: 1000, venta_esperada: 4000 });
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO reposicion_detalles'), [9, 3, 10, 6, 4, 4, 2, 8, 1000, 4000]);
+  });
+
+  it.each([0, 2, 6])('does not count %s withdrawn units as sales when found stock is counted before withdrawal', async (cantidadRetirada) => {
+    const response = await request(app).post('/api/reposiciones').send({
+      ...payload,
+      detalles: [{ ...detalle, cantidad_repuesta: 0, cantidad_retirada: cantidadRetirada }],
+    });
+    expect(response.status).toBe(201);
+    expect(response.body.data.detalles[0]).toMatchObject({ cantidad_vendida: 4, venta_esperada: 4000, stock_final: 6 - cantidadRetirada });
+    expect(query.mock.calls.some(([sql]) => sql.includes('INSERT INTO camioneta_movimientos'))).toBe(false);
+  });
+
+  it('records withdrawal without any estimated sales when all system stock is found', async () => {
+    const response = await request(app).post('/api/reposiciones').send({
+      ...payload,
+      dinero_retirado: 0,
+      detalles: [{ ...detalle, stock_encontrado: 10, cantidad_repuesta: 0, cantidad_retirada: 2 }],
+    });
+    expect(response.status).toBe(201);
+    expect(response.body.data.detalles[0]).toMatchObject({ cantidad_vendida: 0, venta_esperada: 0, stock_final: 8 });
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO reposiciones'), [1, 0, null, 0, 0, 7, 2]);
+  });
+
   it('aggregates replenishment of the same product across machine slots', async () => {
     const response = await request(app).post('/api/reposiciones').send({ ...payload, detalles: [detalle, { ...detalle, id_maquina_producto: 4 }] });
     expect(response.status).toBe(201);

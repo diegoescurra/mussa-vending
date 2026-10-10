@@ -13,16 +13,16 @@ export const getMaquinaById = async (id: number) => {
 }
 
 export const createMaquina = async (maquina: CreateMaquinaDTO) => {
-    const { codigo, nombre, descripcion, ubicacion, estado } = maquina;
+    const { codigo, nombre, descripcion, ubicacion, estado, modelo, sistemas_pago } = maquina;
     const { rows } = await pool.query(
-        'INSERT INTO maquinas (codigo, nombre, descripcion, ubicacion, estado) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-        [codigo, nombre, descripcion, ubicacion, estado]
+        'INSERT INTO maquinas (codigo, nombre, descripcion, ubicacion, estado, modelo, sistemas_pago) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+        [codigo, nombre, descripcion, ubicacion, estado, modelo, sistemas_pago]
     );
     return rows[0];
 }
 
 export const updateMaquina = async (maquina: UpdateMaquinaDTO, id: number) => {
-    const { codigo, nombre, descripcion, ubicacion, estado } = maquina;
+    const { codigo, nombre, descripcion, ubicacion, estado, modelo, sistemas_pago } = maquina;
     const oldMaquina = await getMaquinaById(id);
 
     if (!oldMaquina) {
@@ -30,8 +30,8 @@ export const updateMaquina = async (maquina: UpdateMaquinaDTO, id: number) => {
     }
 
     const { rows } = await pool.query(
-        'UPDATE maquinas SET codigo = $1, nombre = $2, descripcion = $3, ubicacion = $4, estado = $5 WHERE id_maquina = $6 RETURNING *',
-        [codigo, nombre, descripcion, ubicacion, estado, id]
+        'UPDATE maquinas SET codigo = $1, nombre = $2, descripcion = $3, ubicacion = $4, estado = $5, modelo = $6, sistemas_pago = $7 WHERE id_maquina = $8 RETURNING *',
+        [codigo, nombre, descripcion, ubicacion, estado, modelo, sistemas_pago, id]
     );
     return rows[0];
 }

@@ -300,7 +300,8 @@ export const ReposicionPage = () => {
 
           {visibleStep === 3 ? (
             <div className="grid gap-5">
-              <StepTitle title="Paso 3" description="Registra cuántas unidades encontraste físicamente." />
+              <StepTitle title="Paso 3" description="Cuenta todas las unidades antes de retirar o reponer, incluidas las vencidas o dañadas." />
+              <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-800">Si ya retiraste unidades, súmalas al conteo encontrado. En el paso siguiente registrarás cuánto retiraste para no confundirlo con ventas.</p>
               {machineProducts.map((item) => {
                 const values = lineState[item.id_maquina_producto];
                 const errors = lineErrors(item);
@@ -308,7 +309,7 @@ export const ReposicionPage = () => {
                 return (
                   <LineInputCard key={item.id_maquina_producto} title={item.producto_nombre} subtitle={`Sistema: ${item.stock_actual} | Capacidad: ${item.capacidad_maxima}`}>
                     <NumberInput
-                      label="Encontrado"
+                      label="Encontrado antes del retiro"
                       value={values?.stockEncontrado ?? ''}
                       max={item.capacidad_maxima}
                       error={errors.stockEncontrado}
@@ -323,7 +324,7 @@ export const ReposicionPage = () => {
           {visibleStep === 4 ? (
             <div className="grid gap-5">
               <StepTitle title="Paso 4" description="Registra cuánto repusiste y si retiraste unidades." />
-              <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-800">Las unidades retiradas se registran, pero no vuelven al stock utilizable de la camioneta ni cuentan como ventas.</p>
+              <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-800">Registra aquí las unidades vencidas o dañadas incluidas en el conteo anterior. No vuelven al stock utilizable de la camioneta ni cuentan como ventas.</p>
               {machineProducts.map((item) => {
                 const values = lineState[item.id_maquina_producto];
                 const errors = lineErrors(item);
@@ -386,7 +387,7 @@ export const ReposicionPage = () => {
                   </div>
                 ))}
               </div>
-              <p className="text-sm text-slate-600">Vendido = máximo entre stock sistema menos encontrado y cero. Los retiros no son ventas ni retornos al stock de la camioneta.</p>
+              <p className="text-sm text-slate-600">Venta estimada = máximo entre stock sistema menos encontrado antes del retiro y cero. Stock final = encontrado + repuesto - retirado. Los retiros no son ventas ni retornos al stock de la camioneta.</p>
               {!locked && !canFinish ? <p className="text-sm text-red-700">Revisa las cantidades y el dinero en los pasos anteriores antes de finalizar.</p> : null}
               {saveMutation.isError ? <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-800">{saveMutation.error.message}</p> : null}
               {saveMutation.isSuccess ? <p className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-800">Reposición enviada correctamente.</p> : null}

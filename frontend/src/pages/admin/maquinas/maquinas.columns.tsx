@@ -1,6 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { RowActions } from '../../../components/table/RowActions';
-import type { Maquina } from '../../../services/maquinas.service';
+import { sistemasPagoOptions, type Maquina } from '../../../services/maquinas.service';
 
 type MaquinaColumnsParams = {
   onEdit: (maquina: Maquina) => void;
@@ -16,6 +16,13 @@ const stateClasses = {
 export const createMaquinaColumns = ({ onEdit, onDelete }: MaquinaColumnsParams): ColumnDef<Maquina>[] => [
   { accessorKey: 'codigo', header: 'Código' },
   { accessorKey: 'nombre', header: 'Nombre' },
+  { accessorKey: 'modelo', header: 'Modelo', cell: ({ row }) => row.original.modelo || 'Sin configurar' },
+  {
+    id: 'sistemas_pago',
+    header: 'Sistemas de pago',
+    accessorFn: (maquina) => sistemasPagoOptions.filter(({ value }) => maquina.sistemas_pago.includes(value)).map(({ label }) => label).join(', '),
+    cell: ({ getValue }) => getValue<string>() || 'Sin configurar',
+  },
   { accessorKey: 'ubicacion', header: 'Ubicación' },
   {
     accessorKey: 'estado',

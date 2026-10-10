@@ -31,5 +31,7 @@ export const useMaquinasCrud = (onDone: () => void) => {
     updateMaquina: updateMutation.mutate,
     deleteMaquina: deleteMutation.mutate,
     isSaving: createMutation.isPending || updateMutation.isPending,
+    saveError: createMutation.error ?? updateMutation.error,
+    resetErrors: () => { createMutation.reset(); updateMutation.reset(); },
   };
 };

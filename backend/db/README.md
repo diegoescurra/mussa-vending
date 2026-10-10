@@ -10,8 +10,9 @@ En una base vacia, ejecuta estos archivos en orden desde el editor SQL de Neon:
 6. `migrations/005_create_conteos.sql`
 7. `migrations/006_reposicion_camioneta.sql`
 8. `migrations/007_create_missing_reposicion_detalles.sql`
-9. `seed-productos-reales.sql` para cargar el catalogo real.
-10. Opcional, separado y manual: `seed-demo-operacion.sql` para movimientos DEMO-V1.
+9. `migrations/008_add_maquina_modelo_sistemas_pago.sql`
+10. `seed-productos-reales.sql` para cargar el catalogo real.
+11. Opcional, separado y manual: `seed-demo-operacion.sql` para movimientos DEMO-V1.
 
 La URL de conexion de Neon se configura como `DATABASE_URL` en Render.
 
@@ -46,7 +47,7 @@ o camionetas. Tampoco carga existencias.
 
 ## Demo operativo real (DEMO-V1)
 
-Desde el editor SQL de Neon, despues de las migraciones 000..007 y del catalogo
+Desde el editor SQL de Neon, despues de las migraciones 000..008 y del catalogo
 real, ejecutar **por separado** `seed-demo-operacion.sql` completo. Es una carga
 opcional para una base de demostracion, no para agregar historia a productos que
 ya se usan en produccion. No usa la URL configurada ni ejecuta escrituras por si
@@ -158,8 +159,42 @@ FK de cargas/salidas, conservacion por producto, estados de slots, responsables
 y diferencias de conteos, fechas Santiago, repeticion sin cambios y uso manual
 posterior. Tambien prueba guardas de stock/historia/colisiones/carga parcial,
 esquema plural incorrecto, ausencia de 006 y reparacion de detalles mediante
-007 sin exigir datos previos. No es un CLI de migraciones ni ejecuta seeds en
+007 sin exigir datos previos. Aplica 008 sobre maquinas e inventario legacy poblados,
+comprueba preservacion de filas/IDs y defaults, acepta las combinaciones validas
+de pago y rechaza valores desconocidos, null, duplicados y multiples dimensiones
+sin conservar cambios de prueba. No es un CLI de migraciones ni ejecuta seeds en
 la base configurada por el backend.
+
+## Maquinas
+
+`GET /api/maquinas` y `GET /api/maquinas/:id` incluyen `modelo` y `sistemas_pago`.
+`POST /api/maquinas` y `PUT /api/maquinas/:id` requieren todos los campos:
+
+```json
+{
+  "codigo": "M-001",
+  "nombre": "Maquina 1",
+  "descripcion": "Maquina de snacks",
+  "ubicacion": "Local",
+  "estado": "ACTIVA",
+  "modelo": "Modelo real",
+  "sistemas_pago": ["MONEDA", "TARJETA"]
+}
+```
+
+`modelo` debe ser un string no vacio tras recortar espacios; se guarda recortado.
+`sistemas_pago` debe ser un array no vacio, sin duplicados, con valores exactos
+`MONEDA`, `BILLETE` o `TARJETA`. Campos omitidos o invalidos devuelven 400.
+PUT sigue siendo una actualizacion completa, no parcial.
+
+En una base existente, ejecutar manualmente el archivo 008 completo en el editor
+SQL de Neon, despues de las migraciones anteriores y antes de desplegar este
+backend. No se ejecuta automaticamente. Es transaccional y debe aplicarse una sola
+vez. Conserva las maquinas existentes con `modelo = ''` y `sistemas_pago = []`
+hasta editarlas con datos reales; no inventa configuracion ni modifica inventario
+o historia. La BD permite esos defaults legacy, pero rechaza arrays con valores
+fuera del enum, duplicados, elementos null o multiples dimensiones. La API exige
+configuracion no vacia al crear y en cada PUT, incluso para maquinas legacy.
 
 ## Bodega
 
@@ -267,6 +302,18 @@ Las unidades retiradas se registran, pero no vuelven automaticamente al stock
 utilizable de camioneta. No se consideran ventas: las ventas estimadas son
 `max(stock_sistema - stock_encontrado, 0)`. Las diferencias en maquinas no se
 clasifican como faltantes porque pueden corresponder a ventas.
+
+`stock_encontrado` es el conteo ANTES de retirar o reponer, incluidas las unidades
+vencidas o danadas. Si se conto despues de retirarlas, se deben sumar al conteo
+encontrado y registrar tambien en `cantidad_retirada`. El backend no puede detectar
+el orden fisico del conteo. El saldo final es
+`stock_encontrado + cantidad_repuesta - cantidad_retirada`.
+
+Cada detalle guarda el precio vigente del slot en `precio_venta_actual` y el importe
+calculado en `venta_esperada`. El backend comprueba el precio enviado contra el slot
+bloqueado y rechaza con 409 un formulario desactualizado. El dashboard suma los
+importes guardados, sin recalcular visitas anteriores con el precio actual del
+catalogo. Esto no reconstruye cambios de precio ocurridos entre visitas.
 
 La migracion 006 conserva reposiciones historicas sin asignacion; las nuevas
 guardan camioneta y repartidor. El historial de camioneta muestra entradas desde

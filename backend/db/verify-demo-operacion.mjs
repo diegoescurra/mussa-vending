@@ -19,6 +19,7 @@ const migrations = [
   '003_create_camionetas.sql', '004_create_camioneta_inventario.sql',
   '005_create_conteos.sql', '006_reposicion_camioneta.sql',
   '007_create_missing_reposicion_detalles.sql',
+  '008_add_maquina_modelo_sistemas_pago.sql',
 ].map((name) => body(read(`migrations/${name}`)));
 const demo = body(read('seed-demo-operacion.sql'));
 const real = body(read('seed-productos-reales.sql'));
@@ -47,8 +48,50 @@ const sql = [
   'BEGIN;',
   "SET LOCAL TIME ZONE 'America/Santiago';",
   `CREATE SCHEMA ${schema}; SET LOCAL search_path TO ${schema};`,
-  ...migrations,
+  ...migrations.slice(0, 8),
   legacy,
+  `CREATE TEMP TABLE legacy_snapshot ON COMMIT DROP AS
+    SELECT 'machine' AS kind,to_jsonb(m) AS row FROM maquinas m
+    UNION ALL SELECT 'inventory',to_jsonb(s) FROM maquina_productos s;`,
+  migrations[8],
+  assert(`(SELECT count(*) FROM maquinas)=2 AND (SELECT count(*) FROM maquina_productos)=3
+    AND (SELECT sum(stock_actual) FROM maquina_productos)=30
+    AND NOT EXISTS (SELECT 1 FROM maquinas WHERE modelo<>'' OR sistemas_pago<>'{}'::text[])
+    AND NOT EXISTS (WITH current_rows AS (
+      SELECT 'machine' AS kind,to_jsonb(m)-'modelo'-'sistemas_pago' AS row FROM maquinas m
+      UNION ALL SELECT 'inventory',to_jsonb(s) FROM maquina_productos s)
+      (TABLE legacy_snapshot EXCEPT TABLE current_rows)
+      UNION ALL (TABLE current_rows EXCEPT TABLE legacy_snapshot))`, '008 preserves populated legacy rows IDs inventory and fills defaults'),
+  `SAVEPOINT scenario;
+    DO $valid$ DECLARE payments text[]; BEGIN
+      FOR payments IN SELECT p FROM (VALUES
+        ('{}'::text[]), (ARRAY['MONEDA']), (ARRAY['BILLETE']), (ARRAY['TARJETA']),
+        (ARRAY['MONEDA','BILLETE']), (ARRAY['MONEDA','TARJETA']),
+        (ARRAY['BILLETE','TARJETA']), (ARRAY['TARJETA','MONEDA','BILLETE'])
+      ) AS combinations(p) LOOP
+        UPDATE maquinas SET modelo='Modelo valido',sistemas_pago=payments;
+      END LOOP;
+    END $valid$;
+    ROLLBACK TO SAVEPOINT scenario; RELEASE SAVEPOINT scenario;
+    SELECT 'PASS: 008 accepts trimmed model and all eight payment subsets';`,
+  ...[
+    ["sistemas_pago=ARRAY['UNKNOWN']", 'check_violation', 'unknown payment'],
+    ["sistemas_pago=ARRAY['MONEDA',NULL]", 'check_violation', 'null payment element'],
+    ["sistemas_pago=ARRAY[['MONEDA','BILLETE']]", 'check_violation', 'multidimensional payments'],
+    ["sistemas_pago=ARRAY['MONEDA','MONEDA']", 'check_violation', 'duplicate payments'],
+    ['sistemas_pago=NULL', 'not_null_violation', 'NULL whole payment column'],
+    ['modelo=NULL', 'not_null_violation', 'NULL model'],
+    ["modelo=' Modelo invalido '", 'check_violation', 'untrimmed model'],
+  ].map(([assignment, exception, label]) => `SAVEPOINT scenario;
+    DO $invalid$ BEGIN
+      BEGIN
+        UPDATE maquinas SET ${assignment};
+        RAISE EXCEPTION 'FAIL: 008 accepted ${label}';
+      EXCEPTION WHEN ${exception} THEN NULL;
+      END;
+    END $invalid$;
+    ROLLBACK TO SAVEPOINT scenario; RELEASE SAVEPOINT scenario;
+    SELECT 'PASS: 008 rejects ${label}';`),
   // A preexisting catalog entry must keep its values, including zero cost.
   `INSERT INTO productos(nombre,precio_venta,costo_compra,id_proveedor)
    VALUES ('CHOCMAN',550,0,(SELECT id_proveedor FROM proveedores WHERE nombre='Snacks Demo'));`,

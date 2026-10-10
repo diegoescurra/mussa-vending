@@ -1,11 +1,20 @@
 import { api } from './api';
 
 export type EstadoMaquina = 'ACTIVA' | 'INACTIVA' | 'MANTENCION';
+export type SistemaPago = 'MONEDA' | 'BILLETE' | 'TARJETA';
+
+export const sistemasPagoOptions: { value: SistemaPago; label: string }[] = [
+  { value: 'MONEDA', label: 'Moneda' },
+  { value: 'BILLETE', label: 'Billete' },
+  { value: 'TARJETA', label: 'Tarjeta' },
+];
 
 export type Maquina = {
   id_maquina: number;
   codigo: string;
   nombre: string;
+  modelo: string;
+  sistemas_pago: SistemaPago[];
   descripcion: string;
   ubicacion: string;
   estado: EstadoMaquina;
@@ -15,6 +24,8 @@ export type Maquina = {
 export type CreateMaquinaDTO = {
   codigo: string;
   nombre: string;
+  modelo: string;
+  sistemas_pago: SistemaPago[];
   descripcion: string;
   ubicacion: string;
   estado: EstadoMaquina;
