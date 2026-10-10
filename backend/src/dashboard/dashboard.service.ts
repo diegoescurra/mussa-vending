@@ -19,7 +19,7 @@ export const getDashboard = async (desde: unknown, hasta: unknown): Promise<Dash
   if (desde > hasta) throw new AppError('Desde no puede ser posterior a hasta', 400);
 
   const [indicadoresResult, maquinasResult, atencionResult, visitasResult,
-    evolucionResult, diferenciasResult, proveedoresResult, detalleResult] = await Promise.all([
+    evolucionResult, diferenciasResult, proveedoresResult, detalleResult, anteriorResult, productosResult] = await Promise.all([
     pool.query(
       `SELECT COALESCE(SUM(r.dinero_retirado), 0) AS dinero_retirado,
          COALESCE(SUM(r.venta_esperada), 0) AS venta_estimada,
@@ -127,6 +127,27 @@ export const getDashboard = async (desde: unknown, hasta: unknown): Promise<Dash
        ORDER BY c.nombre ASC, c.id_proveedor ASC NULLS LAST`,
       [desde, hasta],
     ),
+    pool.query(
+      `SELECT COALESCE(SUM(r.dinero_retirado), 0) AS dinero_retirado,
+         COALESCE(SUM(r.venta_esperada), 0) AS venta_estimada,
+         COALESCE(SUM(r.diferencia_dinero), 0) AS diferencia_caja, COUNT(*) AS visitas
+       FROM reposiciones r
+       WHERE r.fecha_creacion >= (($1::date - ($2::date - $1::date + 1))::timestamp AT TIME ZONE 'America/Santiago')
+         AND r.fecha_creacion < ($1::date::timestamp AT TIME ZONE 'America/Santiago')`,
+      [desde, hasta],
+    ),
+    pool.query(
+      `SELECT p.id_producto, p.nombre, SUM(d.cantidad_vendida) AS unidades_vendidas,
+         SUM(d.venta_esperada) AS venta_estimada
+       FROM reposiciones r
+       JOIN reposicion_detalles d ON d.id_reposicion = r.id_reposicion
+       JOIN maquina_productos mp ON mp.id_maquina_producto = d.id_maquina_producto
+       JOIN productos p ON p.id_producto = mp.id_producto
+       WHERE ${periodoWhere}
+       GROUP BY p.id_producto, p.nombre HAVING SUM(d.cantidad_vendida) > 0
+       ORDER BY unidades_vendidas DESC, venta_estimada DESC, p.id_producto ASC LIMIT 5`,
+      [desde, hasta],
+    ),
   ]);
 
   const indicadores = indicadoresResult.rows[0];
@@ -159,6 +180,16 @@ export const getDashboard = async (desde: unknown, hasta: unknown): Promise<Dash
       diferencia_caja: Number(indicadores.diferencia_caja),
       visitas: Number(indicadores.visitas),
     },
+    anterior: {
+      dinero_retirado: Number(anteriorResult.rows[0].dinero_retirado),
+      venta_estimada: Number(anteriorResult.rows[0].venta_estimada),
+      diferencia_caja: Number(anteriorResult.rows[0].diferencia_caja),
+      visitas: Number(anteriorResult.rows[0].visitas),
+    },
+    productos: productosResult.rows.map((row) => ({
+      id_producto: Number(row.id_producto), nombre: row.nombre,
+      unidades_vendidas: Number(row.unidades_vendidas), venta_estimada: Number(row.venta_estimada),
+    })),
     maquinas: {
       activas: Number(maquinas.activas),
       inactivas: Number(maquinas.inactivas),

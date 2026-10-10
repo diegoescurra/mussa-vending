@@ -8,6 +8,8 @@ export type Dashboard = {
     diferencia_caja: number;
     visitas: number;
   };
+  anterior: { dinero_retirado: number; venta_estimada: number; diferencia_caja: number; visitas: number };
+  productos: Array<{ id_producto: number; nombre: string; unidades_vendidas: number; venta_estimada: number }>;
   maquinas: { activas: number; inactivas: number; mantencion: number };
   stock: { agotados: number; bajos: number };
   evolucion: Array<{

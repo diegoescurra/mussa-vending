@@ -25,22 +25,22 @@ export function ProvidersPanel({ providers }: { providers: Dashboard['proveedore
 
 export function CashDifferencesPanel({ rows }: { rows: Dashboard['diferencias_maquinas'] }) {
   const sorted = [...rows].sort((a, b) => Math.abs(b.diferencia_caja) - Math.abs(a.diferencia_caja) || a.nombre.localeCompare(b.nombre, 'es'));
-  return <section className="min-w-0 rounded-3xl border border-slate-200 bg-white shadow-sm" aria-labelledby="dashboard-diferencias">
+  return <section className="min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm" aria-labelledby="dashboard-diferencias">
     <div className="flex flex-wrap items-start justify-between gap-3 p-5 sm:p-6">
-      <div><h3 id="dashboard-diferencias" className="text-lg font-semibold">Diferencias de caja por maquina</h3>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Primero las diferencias de mayor magnitud. Caja retirada menos venta estimada; negativo indica menos caja que la estimacion, no una perdida confirmada. Revisa las visitas y el stock de la maquina antes de concluir.</p></div>
+      <div><h3 id="dashboard-diferencias" className="text-lg font-semibold">Diferencias de caja</h3>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Ordenadas por magnitud. Faltantes y sobrantes requieren revisión; no confirman pérdidas ni ganancias.</p></div>
       <Link to="/admin/maquinas" className={`${linkClass} text-sm`}>Revisar maquinas</Link>
     </div>
     <div role="region" aria-labelledby="dashboard-diferencias" tabIndex={0} className="overflow-x-auto focus-visible:outline-2 focus-visible:outline-blue-600">
-      <table className="w-full min-w-[660px] text-left text-sm">
+      <table className="w-full min-w-[480px] text-left text-sm">
         <caption className="sr-only">Diferencias de caja por maquina durante el periodo, importes en CLP</caption>
-        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>{['Maquina', 'Caja retirada', 'Venta estimada', 'Diferencia de caja', 'Visitas'].map((label) => <th key={label} scope="col" className={headingClass}>{label}</th>)}</tr></thead>
+        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>{['Maquina', 'Caja retirada', 'Venta estimada', 'Diferencia de caja', '% diferencia'].map((label) => <th key={label} scope="col" className={headingClass}>{label}</th>)}</tr></thead>
         <tbody>{sorted.length ? sorted.map((row) => <tr key={row.id_maquina} className="hover:bg-blue-50/60">
-          <th scope="row" className={`${cellClass} font-medium`}><Link to="/admin/maquinas" className={linkClass} aria-label={`Revisar maquinas: ${row.nombre}`}>{row.nombre}</Link></th>
+          <th scope="row" className={`${cellClass} font-medium`}><Link to={`/admin/inventario?maquina=${row.id_maquina}`} className={linkClass} aria-label={`Revisar maquinas: ${row.nombre}`}>{row.nombre}</Link></th>
           <td className={`${cellClass} whitespace-nowrap`}><MoneyText value={row.dinero_retirado} /></td>
           <td className={`${cellClass} whitespace-nowrap`}><MoneyText value={row.venta_estimada} /></td>
-          <td className={`${cellClass} whitespace-nowrap ${row.diferencia_caja < 0 ? 'text-red-700' : ''}`}><MoneyText value={row.diferencia_caja} /></td>
-          <td className={cellClass}>{row.visitas}</td>
+          <td className={`${cellClass} whitespace-nowrap ${row.diferencia_caja < 0 ? 'text-red-700' : row.diferencia_caja > 0 ? 'text-amber-800' : ''}`}><MoneyText value={row.diferencia_caja} /></td>
+          <td className={`${cellClass} whitespace-nowrap`}>{row.venta_estimada === 0 ? <span title="Sin venta estimada para calcular porcentaje">—</span> : `${new Intl.NumberFormat('es-CL', { maximumFractionDigits: 1, signDisplay: 'exceptZero' }).format(row.diferencia_caja / row.venta_estimada * 100)} %`}</td>
         </tr>) : <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-500">No hay visitas por maquina en este periodo.</td></tr>}</tbody>
       </table>
     </div>

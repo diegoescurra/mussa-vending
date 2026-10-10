@@ -15,6 +15,8 @@ const periodo = { desde: '2026-09-01', hasta: '2026-09-30' };
 const emptyDashboard = {
   periodo,
   indicadores: { dinero_retirado: 0, venta_estimada: 0, diferencia_caja: 0, visitas: 0 },
+  anterior: { dinero_retirado: 0, venta_estimada: 0, diferencia_caja: 0, visitas: 0 },
+  productos: [],
   maquinas: { activas: 0, inactivas: 0, mantencion: 0 },
   stock: { agotados: 0, bajos: 0 },
   atencion: [],
@@ -67,7 +69,7 @@ describe('dashboard service and route', () => {
     const response = await request(app).get('/api/dashboard').query(periodo);
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ status: 'success', data: emptyDashboard });
-    expect(query).toHaveBeenCalledTimes(8);
+    expect(query).toHaveBeenCalledTimes(10);
   });
 
   it('converts PostgreSQL numeric/count values and timestamps, preserving zero-unit visits and nulls', async () => {
@@ -272,6 +274,31 @@ describe('dashboard service and route', () => {
     expect(sql).toContain('MAX(r.fecha_creacion)');
     expect(sql).not.toMatch(/\$1|\$2/);
     expect(query.mock.calls[1][0]).toContain("estado = 'MANTENCION'");
+  });
+
+  it('returns prior period totals and product ranking without repricing historical sales', async () => {
+    const defaultQuery = query.getMockImplementation()!;
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes('$1::date - ($2::date - $1::date + 1)')) return { rows: [
+        { dinero_retirado: '1200', venta_estimada: '1500', diferencia_caja: '-300', visitas: '2' },
+      ] };
+      if (sql.includes('GROUP BY p.id_producto, p.nombre')) return { rows: [
+        { id_producto: '5', nombre: 'Agua', unidades_vendidas: '12', venta_estimada: '8400' },
+      ] };
+      return defaultQuery(sql);
+    });
+    const data = await getDashboard(periodo.desde, periodo.hasta);
+    expect(data.anterior).toEqual({ dinero_retirado: 1200, venta_estimada: 1500, diferencia_caja: -300, visitas: 2 });
+    expect(data.productos).toEqual([{ id_producto: 5, nombre: 'Agua', unidades_vendidas: 12, venta_estimada: 8400 }]);
+    const [previousSql, previousParams] = query.mock.calls[8];
+    expect(previousParams).toEqual([periodo.desde, periodo.hasta]);
+    expect(previousSql).toContain("AND r.fecha_creacion < ($1::date::timestamp AT TIME ZONE 'America/Santiago')");
+    const [productsSql, productsParams] = query.mock.calls[9];
+    expect(productsParams).toEqual([periodo.desde, periodo.hasta]);
+    expect(productsSql).toContain('SUM(d.venta_esperada)');
+    expect(productsSql).toContain('HAVING SUM(d.cantidad_vendida) > 0');
+    expect(productsSql).toContain('ORDER BY unidades_vendidas DESC, venta_estimada DESC, p.id_producto ASC LIMIT 5');
+    expect(productsSql).not.toMatch(/precio_venta|r.dinero_retirado|p.estado/);
   });
 
   it('validates service inputs and propagates DB errors through the middleware', async () => {

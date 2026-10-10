@@ -1,5 +1,5 @@
-export const panelClass = 'min-w-0 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6';
-export const cellClass = 'border-b border-slate-100 px-4 py-4 text-slate-700';
+export const panelClass = 'min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6';
+export const cellClass = 'border-b border-slate-100 px-4 py-3 text-slate-700';
 export const headingClass = 'whitespace-nowrap border-b border-slate-200 px-4 py-3 font-semibold';
 export const linkClass = 'font-semibold text-blue-700 underline decoration-blue-200 underline-offset-4 hover:decoration-blue-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600';
 export const disclosureClass = 'cursor-pointer rounded-lg text-sm font-semibold text-blue-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600';

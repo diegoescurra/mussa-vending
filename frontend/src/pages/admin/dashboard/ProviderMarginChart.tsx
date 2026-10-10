@@ -1,7 +1,8 @@
 import { useId } from 'react';
+import { Bar, BarChart, CartesianGrid, Cell, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { MoneyText, formatMoney } from '../../../components/ui/MoneyText';
 import type { Dashboard } from '../../../services/dashboard.service';
-import { moneyDomain, rankProviders, scale } from './graphHelpers';
+import { moneyDomain, rankProviders } from './graphHelpers';
 import { cellClass, disclosureClass, headingClass } from './dashboardPresentation';
 
 export function ProviderMarginChart({ rows }: { rows: Dashboard['proveedores']['detalle'] }) {
@@ -9,40 +10,34 @@ export function ProviderMarginChart({ rows }: { rows: Dashboard['proveedores']['
   const ranked = rankProviders(rows);
   const shown = ranked.filter((row) => row.unidades_vendidas > 0).slice(0, 8);
   const domain = moneyDomain(shown.map((row) => row.margen_estimado));
-  const x = (value: number) => scale(value, domain, [240, 550]);
-  const zero = x(0);
   const height = 64 + shown.length * 48;
   const allZero = shown.every((row) => row.margen_estimado === 0);
-  const ticks = allZero ? [0] : [...new Set([domain[0], 0, domain[1]])]
-    .filter((tick) => tick === 0 || Math.abs(x(tick) - zero) >= 90);
+  const ticks = allZero ? [0] : [...new Set([domain[0], 0, domain[1]])];
+  const chartData = shown.map((row) => ({ ...row, group: String(row.id_proveedor ?? 'sin-proveedor') }));
 
   return <div className="mt-6 border-t border-slate-100 pt-5">
     <h4 id={`${id}-heading`} className="font-semibold text-slate-900">Margen bruto estimado por proveedor</h4>
     <p className="mt-2 text-sm leading-6 text-slate-600">Hasta 8 grupos con mayor magnitud de margen, positivo o negativo. Verde: positivo; rojo: negativo. Importes en CLP; todos los grupos estan en la tabla.</p>
     {shown.length === 0 ? <p className="py-10 text-center text-sm text-slate-500">Sin datos de productos vendidos estimados para este periodo.</p> : <>
       <div className="mt-4 overflow-x-auto rounded-lg focus-visible:outline-2 focus-visible:outline-blue-600" role="region" aria-labelledby={`${id}-heading`} tabIndex={0}>
-        <svg viewBox={`0 0 720 ${height}`} className="w-full min-w-[520px]" role="group" aria-labelledby={`${id}-title ${id}-desc`}>
-          <title id={`${id}-title`}>Margen bruto estimado a costos actuales, pesos chilenos</title>
-          <desc id={`${id}-desc`}>Barras a la derecha del cero para margenes positivos y a la izquierda para negativos. No es ganancia neta ni margen historico. Usa Tab para consultar cada grupo.</desc>
-          {ticks.map((tick) => <g key={tick}>
-            <line x1={x(tick)} x2={x(tick)} y1="30" y2={height - 10} stroke={tick === 0 ? '#64748b' : '#e2e8f0'} />
-            <text x={x(tick)} y="18" textAnchor="middle" fontSize="12" fill="#475569">{formatMoney(tick)}</text>
-          </g>)}
-          {shown.map((row, index) => {
-            const y = 52 + index * 48;
-            const label = `${row.nombre}: margen bruto estimado ${formatMoney(row.margen_estimado)}, venta estimada ${formatMoney(row.venta_estimada)}, costo estimado a costos actuales ${formatMoney(row.costo_estimado)}`;
-            return <g key={row.id_proveedor ?? 'sin-proveedor'} role="img" aria-label={label} tabIndex={0} className="group outline-none">
-              <title>{label}</title>
-              <rect x="2" y={y - 20} width="716" height="42" rx="6" fill="transparent" className="group-focus:stroke-blue-600 group-focus:stroke-2" />
-              <text x="8" y={y + 4} fontSize="13" fill="#334155">{row.nombre.length > 28 ? `${row.nombre.slice(0, 27)}...` : row.nombre}</text>
-              <rect x={Math.min(zero, x(row.margen_estimado))} y={y - 10} width={Math.abs(x(row.margen_estimado) - zero)} height="20" rx="3" fill={row.margen_estimado < 0 ? '#be123c' : '#0f766e'} />
-              {row.margen_estimado === 0 ? <circle cx={zero} cy={y} r="3" fill="#64748b" /> : null}
-              <text x="710" y={y + 4} textAnchor="end" fontSize="13" fill={row.margen_estimado < 0 ? '#be123c' : '#334155'}>{formatMoney(row.margen_estimado)}</text>
-            </g>;
-          })}
-        </svg>
+        <div className="min-w-[520px]" style={{ height }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} layout="vertical" accessibilityLayer margin={{ top: 12, right: 48, bottom: 8, left: 8 }}>
+              <CartesianGrid stroke="#e2e8f0" horizontal={false} strokeDasharray="3 3" />
+              <XAxis type="number" domain={domain} ticks={ticks} tickFormatter={formatMoney} tick={{ fontSize: 12, fill: '#475569' }} tickLine={false} axisLine={false} />
+              <YAxis type="category" dataKey="group" width={160} tickFormatter={(value: string) => { const name = chartData.find((row) => row.group === value)?.nombre ?? ''; return name.length > 24 ? `${name.slice(0, 23)}...` : name; }} tick={{ fontSize: 12, fill: '#334155' }} tickLine={false} axisLine={false} />
+              <ReferenceLine x={0} stroke="#64748b" />
+              <Tooltip labelFormatter={(_, payload) => payload[0]?.payload.nombre ?? ''} formatter={(value) => formatMoney(Number(value))} contentStyle={{ borderRadius: 12, borderColor: '#e2e8f0', fontSize: 13 }} />
+              <Bar dataKey="margen_estimado" name="Margen bruto estimado" barSize={20} radius={3} isAnimationActive={false}>
+                {chartData.map((row) => <Cell key={row.group} fill={row.margen_estimado < 0 ? '#be123c' : '#0f766e'} />)}
+              </Bar>
+              {chartData.filter((row) => row.margen_estimado === 0).map((row) => <ReferenceDot key={row.group} x={0} y={row.group} r={3} fill="#64748b" stroke="none" />)}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
       {allZero ? <p className="mt-2 text-sm text-slate-600">Todos los grupos mostrados tienen margen estimado cero.</p> : null}
+      <p className="mt-2 text-sm leading-6 text-slate-600">Pasa el puntero o enfoca el grafico con Tab y usa las flechas para consultar los margenes. La tabla incluye ventas y costos de cada grupo.</p>
     </>}
     <details className="mt-4 border-t border-slate-100 pt-4">
       <summary className={disclosureClass}>Ver todos los proveedores y sus datos ({rows.length} grupos)</summary>

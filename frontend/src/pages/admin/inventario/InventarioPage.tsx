@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../../../components/PageHeader';
 import { StateMessage } from '../../../components/StateMessage';
 import { DataTable } from '../../../components/table/DataTable';
@@ -22,7 +23,9 @@ export const InventarioPage = () => {
   const { data = [], isLoading, isError } = useInventarioMaquinas();
   const { data: maquinas = [], isLoading: isLoadingMaquinas } = useMaquinas();
   const { data: productos = [], isLoading: isLoadingProductos } = useProductos();
-  const [selectedMachineId, setSelectedMachineId] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedMachineId = searchParams.get('maquina') ?? '';
+  const setSelectedMachineId = (id: string) => setSearchParams({ maquina: id });
   const [form, setForm] = useState<InventarioForm>(emptyInventarioForm);
   const [editingItem, setEditingItem] = useState<MaquinaProductoDetalle | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
