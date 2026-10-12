@@ -11,6 +11,10 @@ const isNonNegativeInteger = (value: unknown): value is number =>
 const sameAmount = (left: number, right: number) => Math.abs(left - right) < 0.0001;
 
 export const createReposicion = async (reposicion: CreateReposicionDTO) => {
+  if (!reposicion || typeof reposicion.id_operacion !== 'string'
+    || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reposicion.id_operacion)) {
+    throw new AppError('Debe enviar un identificador unico de operacion UUID', 400);
+  }
   if (!reposicion || typeof reposicion !== 'object' || !isNonNegativeInteger(reposicion.id_maquina) || reposicion.id_maquina <= 0) {
     throw new AppError('La maquina es obligatoria', 400);
   }
@@ -59,6 +63,23 @@ export const createReposicion = async (reposicion: CreateReposicionDTO) => {
 
   try {
     await client.query('BEGIN');
+    // The unique key serializes concurrent retries; rollback also releases the claim.
+    const solicitud = JSON.stringify(reposicion);
+    const { rows: claim } = await client.query(
+      `INSERT INTO reposicion_operaciones (id_operacion, solicitud) VALUES ($1, $2::jsonb)
+       ON CONFLICT (id_operacion) DO NOTHING RETURNING id_operacion`,
+      [reposicion.id_operacion, solicitud],
+    );
+    if (!claim.length) {
+      const { rows } = await client.query(
+        `SELECT solicitud = $2::jsonb AS coincide, respuesta FROM reposicion_operaciones WHERE id_operacion = $1`,
+        [reposicion.id_operacion, solicitud],
+      );
+      if (!rows[0]?.coincide) throw new AppError('Esta operacion ya fue usada con otros datos', 409);
+      if (!rows[0].respuesta) throw new AppError('Operacion incompleta; reintente con el mismo identificador', 409);
+      await client.query('COMMIT');
+      return rows[0].respuesta;
+    }
     const { rows: camionetas } = await client.query(
       'SELECT id_camioneta, estado FROM camionetas WHERE id_repartidor = $1 FOR SHARE',
       [reposicion.id_repartidor],
@@ -182,8 +203,11 @@ export const createReposicion = async (reposicion: CreateReposicionDTO) => {
       );
     }
 
+    const respuesta = { ...nuevaReposicion, detalles: detallesCalculados };
+    await client.query('UPDATE reposicion_operaciones SET respuesta = $2::jsonb WHERE id_operacion = $1',
+      [reposicion.id_operacion, JSON.stringify(respuesta)]);
     await client.query('COMMIT');
-    return { ...nuevaReposicion, detalles: detallesCalculados };
+    return respuesta;
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

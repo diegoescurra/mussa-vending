@@ -1,5 +1,13 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api";
 
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
 type ApiResponse<T> = {
   status: "success" | "fail" | "error";
   message?: string;
@@ -22,7 +30,7 @@ const request = async <T>(
     return undefined as T;
   }
 
-  let payload: ApiResponse<T> | null = null;
+  let payload: ApiResponse<T> | null;
 
   try {
     payload = (await response.json()) as ApiResponse<T>;
@@ -31,8 +39,8 @@ const request = async <T>(
   }
 
   if (!response.ok) {
-    throw new Error(
-      payload?.message ?? `Error en la solicitud: ${response.status}`
+    throw new ApiError(
+      payload?.message ?? `Error en la solicitud: ${response.status}`, response.status
     );
   }
 

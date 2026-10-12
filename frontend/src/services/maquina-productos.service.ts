@@ -1,6 +1,7 @@
 import { api } from './api';
 
 export type MaquinaProducto = {
+  version: number;
   id_maquina_producto: number;
   id_maquina: number;
   id_producto: number;
@@ -19,6 +20,7 @@ export type CreateMaquinaProductoDTO = {
 };
 
 export type UpdateMaquinaProductoDTO = {
+  version: number;
   capacidad_maxima?: number;
   stock_actual?: number;
   precio_venta_actual?: number;

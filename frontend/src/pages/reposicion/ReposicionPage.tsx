@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { ApiError } from '../../services/api';
 import { useInventarioMaquinas } from '../../hooks/useInventarioMaquinas';
 import { useMaquinas } from '../../hooks/useMaquinas';
 import { reposicionesService, type CreateReposicionPayload } from '../../services/reposiciones.service';
@@ -89,6 +90,8 @@ export const ReposicionPage = () => {
   const [lineState, setLineState] = useState<Record<number, LineState>>({});
   const [dineroRetirado, setDineroRetirado] = useState('');
   const [observacion, setObservacion] = useState('');
+  const [pendingPayload, setPendingPayload] = useState<CreateReposicionPayload | null>(null);
+  const submitting = useRef(false);
 
   const activeMachineId = selectedMachineId;
   const activeMachine = maquinas.find((machine) => String(machine.id_maquina) === activeMachineId);
@@ -173,7 +176,14 @@ export const ReposicionPage = () => {
   const saveMutation = useMutation({
     mutationFn: reposicionesService.create,
     onMutate: () => activeTruck?.id_camioneta,
-    onError: () => setSavedResumen(null),
+    onError: (error) => {
+      // Unknown outcomes must retry exactly the same operation, even after a refetch.
+      if (error instanceof ApiError && (error.status === 400 || error.status === 409)) {
+        setPendingPayload(null);
+        setSavedResumen(null);
+      }
+    },
+    onSettled: () => { submitting.current = false; },
     onSuccess: (_data, _variables, truckId) => {
       void queryClient.invalidateQueries({ queryKey: ['inventario-maquinas'] });
       void queryClient.invalidateQueries({ queryKey: ['camioneta-inventario', truckId] });
@@ -181,7 +191,7 @@ export const ReposicionPage = () => {
     },
   });
   const locked = saveMutation.isPending || saveMutation.isSuccess;
-  const visibleStep = !dataReady && !locked ? 1 : step;
+  const visibleStep = !dataReady && !locked && !pendingPayload ? 1 : step;
   const foundValid = machineProducts.every((item) => {
     const values = lineState[item.id_maquina_producto];
     return Boolean(values?.stockEncontrado.trim()) && !lineErrors(item).stockEncontrado;
@@ -191,9 +201,10 @@ export const ReposicionPage = () => {
     return Boolean(values?.cantidadRepuesta.trim()) && !hasErrors(lineErrors(item));
   });
   const moneyValid = dineroRetirado.trim() !== '' && Number.isFinite(toNumber(dineroRetirado)) && toNumber(dineroRetirado) >= 0;
-  const canFinish = dataReady && quantitiesValid && moneyValid && !locked;
+  const canFinish = !locked && (Boolean(pendingPayload) || (dataReady && quantitiesValid && moneyValid));
 
   const resetForm = () => {
+    setPendingPayload(null);
     setStep(1);
     setLineState({});
     setDineroRetirado('');
@@ -202,12 +213,12 @@ export const ReposicionPage = () => {
     saveMutation.reset();
   };
   const selectMachine = (id: string) => {
-    if (locked || id === selectedMachineId) return;
+    if (locked || pendingPayload || id === selectedMachineId) return;
     resetForm();
     setSelectedMachineId(id);
   };
   const selectReponedor = (id: string) => {
-    if (locked || id === selectedReponedorId) return;
+    if (locked || pendingPayload || id === selectedReponedorId) return;
     resetForm();
     setSelectedReponedorId(id);
   };
@@ -221,9 +232,10 @@ export const ReposicionPage = () => {
   };
 
   const goNext = () => { if (canGoNext()) setStep(Math.min(visibleStep + 1, 6) as Step); };
-  const goBack = () => { if (!locked) setStep(Math.max(visibleStep - 1, 1) as Step); };
+  const goBack = () => { if (!locked && !pendingPayload) setStep(Math.max(visibleStep - 1, 1) as Step); };
 
   const buildPayload = (): CreateReposicionPayload => ({
+    id_operacion: crypto.randomUUID(),
     id_maquina: Number(activeMachineId),
     id_repartidor: Number(selectedReponedorId),
     dinero_retirado: resumen.dineroRetirado,
@@ -244,9 +256,12 @@ export const ReposicionPage = () => {
   });
 
   const finishReposicion = () => {
-    if (!canFinish) return;
-    setSavedResumen(liveResumen);
-    saveMutation.mutate(buildPayload());
+    if (!canFinish || submitting.current) return;
+    const payload = pendingPayload ?? buildPayload();
+    submitting.current = true;
+    setPendingPayload(payload);
+    if (!pendingPayload) setSavedResumen(liveResumen);
+    saveMutation.mutate(payload);
   };
 
   return (
@@ -265,7 +280,7 @@ export const ReposicionPage = () => {
         </div>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <fieldset disabled={locked} className="min-w-0">
+          <fieldset disabled={locked || Boolean(pendingPayload)} className="min-w-0">
           {visibleStep === 1 ? (
             <div className="grid gap-5">
               <StepTitle title="Paso 1" description="Selecciona el reponedor y la máquina que vas a reponer." />
@@ -396,7 +411,7 @@ export const ReposicionPage = () => {
           </fieldset>
 
           <div className="mt-6 flex gap-3">
-            <button type="button" onClick={goBack} disabled={visibleStep === 1 || locked} className="flex-1 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 disabled:opacity-40">
+            <button type="button" onClick={goBack} disabled={visibleStep === 1 || locked || Boolean(pendingPayload)} className="flex-1 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 disabled:opacity-40">
               Atrás
             </button>
             {visibleStep < 6 ? (
@@ -405,7 +420,7 @@ export const ReposicionPage = () => {
               </button>
             ) : (
               <button type="button" onClick={finishReposicion} disabled={!canFinish} className="flex-1 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white disabled:bg-slate-300">
-                {saveMutation.isPending ? 'Guardando...' : 'Finalizar reposición'}
+                {saveMutation.isPending ? 'Guardando...' : pendingPayload && saveMutation.isError ? 'Reintentar envío' : 'Finalizar reposición'}
               </button>
             )}
           </div>

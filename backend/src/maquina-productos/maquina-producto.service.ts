@@ -72,11 +72,15 @@ export const createMaquinaProducto = async (maquinaProducto: CreateMaquinaProduc
 export const updateMaquinaProducto = async (maquinaProducto: UpdateMaquinaProductoDTO, id: number) => {
     validateMaquinaProductoId(id);
     validateMaquinaProducto(maquinaProducto, false);
+    validateMaquinaProductoId(maquinaProducto.version, 'Recargue el inventario antes de editar: falta una version valida');
     const { capacidad_maxima, stock_actual, precio_venta_actual, estado } = maquinaProducto;
     const oldMaquinaProducto = await getMaquinaProductoById(id);
 
     if (!oldMaquinaProducto) {
         throw new AppError('Producto de maquina no encontrado', 404);
+    }
+    if (oldMaquinaProducto.version !== maquinaProducto.version) {
+        throw new AppError('El inventario cambio; cierre el formulario y vuelva a abrirlo antes de guardar', 409);
     }
 
     // Only database values may be numeric strings; request values stay strictly typed.
@@ -94,10 +98,11 @@ export const updateMaquinaProducto = async (maquinaProducto: UpdateMaquinaProduc
                  stock_actual = COALESCE($2, stock_actual),
                  precio_venta_actual = COALESCE($3, precio_venta_actual),
                  estado = COALESCE($4, estado)
-             WHERE id_maquina_producto = $5
+             WHERE id_maquina_producto = $5 AND version = $6
              RETURNING *`,
-            [capacidad_maxima, stock_actual, precio_venta_actual, estado, id]
+            [capacidad_maxima, stock_actual, precio_venta_actual, estado, id, maquinaProducto.version]
         );
+        if (!rows.length) throw new AppError('El inventario cambio; cierre el formulario y vuelva a abrirlo antes de guardar', 409);
         return rows[0];
     } catch (error) {
         translateWriteError(error);

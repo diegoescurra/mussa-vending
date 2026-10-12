@@ -11,6 +11,7 @@ export type CreateReposicionDetalleDTO = {
 };
 
 export type CreateReposicionDTO = {
+  id_operacion: string;
   id_maquina: number;
   id_repartidor: number;
   dinero_retirado: number;

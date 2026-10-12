@@ -17,6 +17,7 @@ export interface CreateMaquinaProductoDTO {
 }
 
 export interface UpdateMaquinaProductoDTO {
+  version: number;
   capacidad_maxima?: number;
   stock_actual?: number;
   precio_venta_actual?: number;

@@ -11,8 +11,9 @@ En una base vacia, ejecuta estos archivos en orden desde el editor SQL de Neon:
 7. `migrations/006_reposicion_camioneta.sql`
 8. `migrations/007_create_missing_reposicion_detalles.sql`
 9. `migrations/008_add_maquina_modelo_sistemas_pago.sql`
-10. `seed-productos-reales.sql` para cargar el catalogo real.
-11. Opcional, separado y manual: `seed-demo-operacion.sql` para movimientos DEMO-V1.
+10. `migrations/009_operation_safety.sql`
+11. `seed-productos-reales.sql` para cargar el catalogo real.
+12. Opcional, separado y manual: `seed-demo-operacion.sql` para movimientos DEMO-V1.
 
 La URL de conexion de Neon se configura como `DATABASE_URL` en Render.
 
@@ -288,6 +289,24 @@ tolerancias ni clasificacion de perdidas. Sus claves foraneas impiden eliminar
 productos, responsables o camionetas con historia; no hay borrado en cascada.
 
 ## Reposicion desde camioneta
+
+Antes de desplegar esta version, aplicar una sola vez la migracion 009 completa.
+Agrega el registro de operaciones y una version al inventario; conserva los saldos
+y el historial existentes. No se ejecuta automaticamente al iniciar el backend.
+Actualizar backend y frontend juntos: los clientes anteriores deben recargarse.
+
+Cada POST requiere `id_operacion` (UUID generado por el cliente). Un reintento debe
+usar el mismo UUID y cuerpo: devuelve la respuesta guardada sin repetir movimientos,
+incluso si ambas solicitudes llegan simultaneamente. Reutilizar el UUID con otro
+cuerpo devuelve 409. Una transaccion fallida libera el UUID al hacer rollback.
+El formulario conserva el cuerpo enviado ante errores de red o servidor y ofrece
+reintentar; solo una nueva operacion o una correccion tras rechazo validado usa otro UUID.
+
+Las lecturas de `maquina_productos` incluyen `version`; cada PUT debe enviarla junto
+a los campos modificados. Si cambio desde la lectura devuelve 409. Un trigger incrementa
+la version en cada actualizacion, incluidas las reposiciones que dejan el mismo stock.
+El formulario de edicion no reenvia cantidades sin cambios; ante conflicto, cerrarlo
+y volver a abrirlo despues de actualizar el inventario.
 
 `POST /api/reposiciones` requiere `id_repartidor` junto a los datos de reposicion.
 El backend obtiene su camioneta asignada; no acepta una camioneta elegida por el cliente.

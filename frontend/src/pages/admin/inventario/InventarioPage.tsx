@@ -64,7 +64,9 @@ export const InventarioPage = () => {
     if (isSaving) return;
     resetSave();
     if (editingItem) {
-      updateInventario({ id: editingItem.id_maquina_producto, payload: inventarioFormToUpdatePayload(form) });
+      const payload = inventarioFormToUpdatePayload(form, editingItem);
+      if (Object.keys(payload).length === 1) return closeModal();
+      updateInventario({ id: editingItem.id_maquina_producto, payload });
       return;
     }
 

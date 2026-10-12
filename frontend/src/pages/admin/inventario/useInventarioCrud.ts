@@ -14,6 +14,7 @@ export const useInventarioCrud = (onDone: () => void) => {
   });
 
   const updateMutation = useMutation({
+    onError: () => { void invalidateInventario(); },
     mutationFn: ({ id, payload }: { id: number; payload: UpdateMaquinaProductoDTO }) => maquinaProductosService.update(id, payload),
     onSuccess: () => {
       invalidateInventario();

@@ -13,7 +13,7 @@ jest.mock('../config/db.js', () => ({
 const app = createTestApp(router);
 const query = pool.query as jest.Mock;
 const payload = { id_maquina: 1, id_producto: 2, capacidad_maxima: 20, stock_actual: 10, precio_venta_actual: 12.34 };
-const existing = { id_maquina_producto: 1, ...payload, precio_venta_actual: '12.34', estado: true };
+const existing = { version: 1, id_maquina_producto: 1, ...payload, precio_venta_actual: '12.34', estado: true };
 
 const invalidFields = [
     ...['id_maquina', 'id_producto'].flatMap(field =>
@@ -25,6 +25,27 @@ const invalidFields = [
 
 describe('maquina-productos writes with real service and mocked database', () => {
     beforeEach(() => jest.resetAllMocks());
+
+    it('rejects an edit opened before a replenishment even when the stock returned to its initial value', async () => {
+        query.mockResolvedValueOnce({ rows: [{ ...existing, version: 2 }] });
+        const response = await request(app).put('/api/maquina-productos/1')
+            .send({ precio_venta_actual: 15, stock_actual: 10, version: 1 });
+        expect(response.status).toBe(409);
+        expect(query).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects a concurrent write between reading and updating the row', async () => {
+        query.mockResolvedValueOnce({ rows: [existing] }).mockResolvedValueOnce({ rows: [] });
+        const response = await request(app).put('/api/maquina-productos/1').send({ stock_actual: 12, version: 1 });
+        expect(response.status).toBe(409);
+        expect(query).toHaveBeenLastCalledWith(expect.stringContaining('AND version = $6'), [undefined, 12, undefined, undefined, 1, 1]);
+    });
+
+    it.each([undefined, null, '1', 0, -1, 1.5])('rejects edits without a valid version: %s', async (version) => {
+        const response = await request(app).put('/api/maquina-productos/1').send({ stock_actual: 12, version });
+        expect(response.status).toBe(400);
+        expect(query).not.toHaveBeenCalled();
+    });
 
     it.each(invalidFields)('POST rejects invalid numeric fields before SQL: %j', async (fields) => {
         const response = await request(app).post('/api/maquina-productos').send({ ...payload, ...fields });
@@ -55,7 +76,7 @@ describe('maquina-productos writes with real service and mocked database', () =>
     });
 
     it.each(['abc', '0', '-1', '1.5', '2147483648', 'Infinity', '1e0', '0x1', '%20'])('PUT rejects invalid HTTP ID %s before SQL', async (id) => {
-        const response = await request(app).put(`/api/maquina-productos/${id}`).send({ stock_actual: 1 });
+        const response = await request(app).put(`/api/maquina-productos/${id}`).send({ stock_actual: 1, version: 1 });
         expect(response.status).toBe(400);
         expect(response.body.message).toBe('Seleccione una asignacion valida');
         expect(query).not.toHaveBeenCalled();
@@ -64,7 +85,7 @@ describe('maquina-productos writes with real service and mocked database', () =>
     it.each(['post', 'put'] as const)('%s rejects missing fields and array data without SQL', async (method) => {
         for (const body of [{}, []]) {
             const url = `/api/maquina-productos${method === 'put' ? '/1' : ''}`;
-            const response = await request(app)[method](url).send(body);
+            const response = await request(app)[method](url).send(Array.isArray(body) ? body : { ...body, version: 1 });
             expect(response.status).toBe(400);
             expect(response.body.message).toBe(Array.isArray(body)
                 ? 'Los datos enviados deben ser un objeto'
@@ -82,7 +103,7 @@ describe('maquina-productos writes with real service and mocked database', () =>
 
     it.each([{ stock_actual: 21 }, { capacidad_maxima: 9 }])('PUT validates partial relationship against existing state: %j', async (body) => {
         query.mockResolvedValueOnce({ rows: [{ ...existing, capacidad_maxima: '20', stock_actual: '10' }] });
-        const response = await request(app).put('/api/maquina-productos/1').send(body);
+        const response = await request(app).put('/api/maquina-productos/1').send({ ...body, version: 1 });
         expect(response.status).toBe(400);
         expect(response.body.message).toBe('Stock actual no puede superar la capacidad maxima');
         expect(query).toHaveBeenCalledTimes(1);
@@ -113,16 +134,16 @@ describe('maquina-productos writes with real service and mocked database', () =>
     ])('PUT accepts valid partial state with existing pg numeric strings: %j', async (body) => {
         const updated = { ...existing, ...body };
         query.mockResolvedValueOnce({ rows: [existing] }).mockResolvedValueOnce({ rows: [updated] });
-        const response = await request(app).put('/api/maquina-productos/1').send(body);
+        const response = await request(app).put('/api/maquina-productos/1').send({ ...body, version: 1 });
         expect(response.status).toBe(200);
         expect(response.body.data).toEqual(updated);
-        const data = body as UpdateMaquinaProductoDTO;
-        expect(query).toHaveBeenLastCalledWith(expect.stringContaining('COALESCE'), [data.capacidad_maxima, data.stock_actual, data.precio_venta_actual, data.estado, 1]);
+        const data: UpdateMaquinaProductoDTO = { ...body, version: 1 };
+        expect(query).toHaveBeenLastCalledWith(expect.stringContaining('COALESCE'), [data.capacidad_maxima, data.stock_actual, data.precio_venta_actual, data.estado, 1, 1]);
     });
 
     it('PUT returns 404 without UPDATE when the relation is missing', async () => {
         query.mockResolvedValueOnce({ rows: [] });
-        const response = await request(app).put('/api/maquina-productos/1').send({ stock_actual: 1 });
+        const response = await request(app).put('/api/maquina-productos/1').send({ stock_actual: 1, version: 1 });
         expect(response.status).toBe(404);
         expect(response.body.message).toBe('Producto de maquina no encontrado');
         expect(query).toHaveBeenCalledTimes(1);
@@ -149,7 +170,7 @@ describe('maquina-productos writes with real service and mocked database', () =>
             if (method === 'put') query.mockResolvedValueOnce({ rows: [existing] });
             query.mockRejectedValueOnce(Object.assign(new Error('internal database details'), error));
             const response = await request(app)[method](`/api/maquina-productos${method === 'put' ? '/1' : ''}`)
-                .send(method === 'post' ? payload : { stock_actual: 20 });
+                .send(method === 'post' ? payload : { stock_actual: 20, version: 1 });
             expect(response.status).toBe(error.status);
             expect(response.body.message).toBe(error.message);
         }
@@ -157,7 +178,7 @@ describe('maquina-productos writes with real service and mocked database', () =>
 
     it('keeps SELECT failures as unexpected server errors', async () => {
         query.mockRejectedValueOnce(new Error('database unavailable'));
-        const response = await request(app).put('/api/maquina-productos/1').send({ stock_actual: 1 });
+        const response = await request(app).put('/api/maquina-productos/1').send({ stock_actual: 1, version: 1 });
         expect(response.status).toBe(500);
         expect(query).toHaveBeenCalledTimes(1);
     });
@@ -167,8 +188,8 @@ describe('maquina-productos writes with real service and mocked database', () =>
             for (const field of Object.keys(payload)) {
                 await expect(createMaquinaProducto({ ...payload, [field]: value })).rejects.toMatchObject({ statusCode: 400 });
             }
-            await expect(updateMaquinaProducto({ stock_actual: 1 }, value)).rejects.toMatchObject({ statusCode: 400 });
-            await expect(updateMaquinaProducto({ precio_venta_actual: value }, 1)).rejects.toMatchObject({ statusCode: 400 });
+            await expect(updateMaquinaProducto({ stock_actual: 1, version: 1 }, value)).rejects.toMatchObject({ statusCode: 400 });
+            await expect(updateMaquinaProducto({ precio_venta_actual: value, version: 1 }, 1)).rejects.toMatchObject({ statusCode: 400 });
         }
         for (const body of [null, undefined, [], 'invalid']) {
             await expect(createMaquinaProducto(body as unknown as CreateMaquinaProductoDTO)).rejects.toMatchObject({ statusCode: 400 });

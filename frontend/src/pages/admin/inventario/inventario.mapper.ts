@@ -35,9 +35,11 @@ export const inventarioFormToCreatePayload = (form: InventarioForm): CreateMaqui
   precio_venta_actual: Number(form.precio_venta_actual),
 });
 
-export const inventarioFormToUpdatePayload = (form: InventarioForm): UpdateMaquinaProductoDTO => ({
-  capacidad_maxima: Number(form.capacidad_maxima),
-  stock_actual: Number(form.stock_actual),
-  precio_venta_actual: Number(form.precio_venta_actual),
-  estado: form.estado === 'true',
-});
+export const inventarioFormToUpdatePayload = (form: InventarioForm, original: MaquinaProductoDetalle): UpdateMaquinaProductoDTO => {
+  const payload: UpdateMaquinaProductoDTO = { version: original.version };
+  for (const field of ['capacidad_maxima', 'stock_actual', 'precio_venta_actual'] as const) {
+    if (Number(form[field]) !== Number(original[field])) payload[field] = Number(form[field]);
+  }
+  if ((form.estado === 'true') !== original.estado) payload.estado = form.estado === 'true';
+  return payload;
+};
