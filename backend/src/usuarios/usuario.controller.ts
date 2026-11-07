@@ -1,5 +1,5 @@
 import { AppError } from '../utils/AppError.js';
-import { asyncHandler } from '../utils/AsyncHandler.js';
+import type { RequestHandler } from 'express';
 import {
     createUsuario,
     deleteUsuario,
@@ -7,7 +7,8 @@ import {
     getUsuarioById,
     updateUsuario,
 } from './usuario.service.js';
-import type { CreateUsuarioDTO, RolUsuario, UpdateUsuarioDTO } from './usuario.type.js';
+import type { CreateUsuarioDTO, UpdateUsuarioDTO } from './usuario.dto.js';
+import type { RolUsuario } from './usuario.type.js';
 
 const rolesValidos: RolUsuario[] = ['ADMIN', 'REPONEDOR'];
 
@@ -30,16 +31,16 @@ const validatePersonalFields = (fields: { nombre?: unknown; apellido?: unknown; 
     }
 };
 
-export const getUsuariosController = asyncHandler(async (_req, res) => {
+export const getUsuariosController: RequestHandler = async (_req, res) => {
     const usuarios = await getAllUsuarios();
 
     res.json({
         status: 'success',
         data: usuarios,
     });
-})
+};
 
-export const getUsuarioByIdController = asyncHandler(async (req, res) => {
+export const getUsuarioByIdController: RequestHandler = async (req, res) => {
     const id = parseId(req.params.id);
     const usuario = await getUsuarioById(id);
 
@@ -51,9 +52,9 @@ export const getUsuarioByIdController = asyncHandler(async (req, res) => {
         status: 'success',
         data: usuario,
     });
-})
+};
 
-export const createUsuarioController = asyncHandler(async (req, res) => {
+export const createUsuarioController: RequestHandler = async (req, res) => {
     const { nombre, apellido, email, password_hash = 'pendiente', rol } = req.body ?? {};
 
     if (!nombre || !apellido || !email || !password_hash || !rol) {
@@ -77,9 +78,9 @@ export const createUsuarioController = asyncHandler(async (req, res) => {
         status: 'success',
         data: newUsuario,
     });
-})
+};
 
-export const updateUsuarioController = asyncHandler(async (req, res) => {
+export const updateUsuarioController: RequestHandler = async (req, res) => {
     const id = parseId(req.params.id);
     const { nombre, apellido, email, password_hash, rol, estado } = req.body ?? {};
 
@@ -113,20 +114,14 @@ export const updateUsuarioController = asyncHandler(async (req, res) => {
         status: 'success',
         data: updatedUsuario,
     });
-})
+};
 
-export const deleteUsuarioController = asyncHandler(async (req, res) => {
+export const deleteUsuarioController: RequestHandler = async (req, res) => {
     const id = parseId(req.params.id);
-    const usuario = await getUsuarioById(id);
-
-    if (!usuario) {
-        throw new AppError('Usuario no encontrado', 404);
-    }
-
     await deleteUsuario(id);
 
     res.status(204).json({
         status: 'success',
         data: null,
     });
-})
+};

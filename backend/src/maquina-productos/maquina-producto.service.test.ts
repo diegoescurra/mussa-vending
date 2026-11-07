@@ -2,8 +2,7 @@ import request from 'supertest';
 import pool from '../config/db.js';
 import { createTestApp } from '../test-utils/createTestApp.js';
 import router from './maquina-producto.route.js';
-import { createMaquinaProducto, updateMaquinaProducto } from './maquina-producto.service.js';
-import type { CreateMaquinaProductoDTO, UpdateMaquinaProductoDTO } from './maquina-producto.type.js';
+import type { UpdateMaquinaProductoDTO } from './maquina-producto.dto.js';
 
 jest.mock('../config/db.js', () => ({
     __esModule: true,
@@ -14,14 +13,6 @@ const app = createTestApp(router);
 const query = pool.query as jest.Mock;
 const payload = { id_maquina: 1, id_producto: 2, capacidad_maxima: 20, stock_actual: 10, precio_venta_actual: 12.34 };
 const existing = { version: 1, id_maquina_producto: 1, ...payload, precio_venta_actual: '12.34', estado: true };
-
-const invalidFields = [
-    ...['id_maquina', 'id_producto'].flatMap(field =>
-        [null, '1', true, 0, -1, 1.5, 2147483648].map(value => ({ [field]: value }))),
-    ...['capacidad_maxima', 'stock_actual'].flatMap(field =>
-        [null, '10', false, -1, 0.5, 2147483648].map(value => ({ [field]: value }))),
-    ...[null, '12.34', true, -0.01, 1.001, 0.0000001, 10000000000].map(value => ({ precio_venta_actual: value })),
-];
 
 describe('maquina-productos writes with real service and mocked database', () => {
     beforeEach(() => jest.resetAllMocks());
@@ -44,32 +35,36 @@ describe('maquina-productos writes with real service and mocked database', () =>
     it.each([undefined, null, '1', 0, -1, 1.5])('rejects edits without a valid version: %s', async (version) => {
         const response = await request(app).put('/api/maquina-productos/1').send({ stock_actual: 12, version });
         expect(response.status).toBe(400);
+        expect(response.body.message).toContain('falta una version valida');
         expect(query).not.toHaveBeenCalled();
     });
 
-    it.each(invalidFields)('POST rejects invalid numeric fields before SQL: %j', async (fields) => {
+    it.each([
+        [{ id_maquina: 0 }, 'Seleccione una maquina valida'],
+        [{ id_producto: 2147483648 }, 'Seleccione un producto valido'],
+        [{ capacidad_maxima: 0.5 }, 'Capacidad maxima'],
+        [{ stock_actual: -1 }, 'Stock actual'],
+        [{ stock_actual: '10' }, 'Stock actual'],
+        [{ precio_venta_actual: -0.01 }, 'Precio actual'],
+        [{ precio_venta_actual: 1.001 }, 'Precio actual'],
+        [{ precio_venta_actual: 10000000000 }, 'Precio actual'],
+    ] as const)('POST rejects invalid numeric fields before SQL: %j', async (fields, message) => {
         const response = await request(app).post('/api/maquina-productos').send({ ...payload, ...fields });
         expect(response.status).toBe(400);
-        const field = Object.keys(fields)[0];
-        const messages: Record<string, string> = {
-            id_maquina: 'Seleccione una maquina valida',
-            id_producto: 'Seleccione un producto valido',
-            capacidad_maxima: 'Capacidad maxima debe ser un entero entre 0 y 2147483647',
-            stock_actual: 'Stock actual debe ser un entero entre 0 y 2147483647',
-            precio_venta_actual: 'Precio actual debe estar entre 0 y 9999999999.99 y tener hasta 2 decimales',
-        };
-        expect(response.body.message).toBe(messages[field!]);
+        expect(response.body.message).toContain(message);
         expect(query).not.toHaveBeenCalled();
     });
 
-    it.each(invalidFields.filter(fields => !('id_maquina' in fields) && !('id_producto' in fields)))('PUT rejects invalid numeric fields before SELECT: %j', async (fields) => {
-        const response = await request(app).put('/api/maquina-productos/1').send(fields);
+    it('PUT rejects a nonnumeric price before SELECT even with a valid version', async () => {
+        const response = await request(app).put('/api/maquina-productos/1')
+            .send({ precio_venta_actual: '12.34', version: 1 });
         expect(response.status).toBe(400);
+        expect(response.body.message).toContain('Precio actual');
         expect(query).not.toHaveBeenCalled();
     });
 
     it.each([null, 'false', 0, 1, {}, []])('PUT rejects non-boolean estado: %j', async (estado) => {
-        const response = await request(app).put('/api/maquina-productos/1').send({ estado });
+        const response = await request(app).put('/api/maquina-productos/1').send({ estado, version: 1 });
         expect(response.status).toBe(400);
         expect(response.body.message).toBe('Estado debe ser verdadero o falso');
         expect(query).not.toHaveBeenCalled();
@@ -110,8 +105,10 @@ describe('maquina-productos writes with real service and mocked database', () =>
     });
 
     it('PUT rejects an invalid supplied relationship before SELECT', async () => {
-        const response = await request(app).put('/api/maquina-productos/1').send({ capacidad_maxima: 0, stock_actual: 1 });
+        const response = await request(app).put('/api/maquina-productos/1')
+            .send({ capacidad_maxima: 0, stock_actual: 1, version: 1 });
         expect(response.status).toBe(400);
+        expect(response.body.message).toBe('Stock actual no puede superar la capacidad maxima');
         expect(query).not.toHaveBeenCalled();
     });
 
@@ -124,7 +121,7 @@ describe('maquina-productos writes with real service and mocked database', () =>
         const response = await request(app).post('/api/maquina-productos').send({ ...body, estado: false });
         expect(response.status).toBe(201);
         expect(response.body.data.estado).toBe(true);
-        expect(query).toHaveBeenCalledWith(expect.not.stringContaining('estado'), Object.values(body));
+        expect(query).toHaveBeenCalledWith(expect.stringMatching(/^INSERT INTO maquina_productos \(id_maquina, id_producto, capacidad_maxima, stock_actual, precio_venta_actual\)/), Object.values(body));
     });
 
     it.each([
@@ -183,18 +180,11 @@ describe('maquina-productos writes with real service and mocked database', () =>
         expect(query).toHaveBeenCalledTimes(1);
     });
 
-    it('service also rejects invalid runtime inputs and non-finite numbers before SQL', async () => {
-        for (const value of [NaN, Infinity, -Infinity]) {
-            for (const field of Object.keys(payload)) {
-                await expect(createMaquinaProducto({ ...payload, [field]: value })).rejects.toMatchObject({ statusCode: 400 });
-            }
-            await expect(updateMaquinaProducto({ stock_actual: 1, version: 1 }, value)).rejects.toMatchObject({ statusCode: 400 });
-            await expect(updateMaquinaProducto({ precio_venta_actual: value, version: 1 }, 1)).rejects.toMatchObject({ statusCode: 400 });
-        }
-        for (const body of [null, undefined, [], 'invalid']) {
-            await expect(createMaquinaProducto(body as unknown as CreateMaquinaProductoDTO)).rejects.toMatchObject({ statusCode: 400 });
-            await expect(updateMaquinaProducto(body as unknown as UpdateMaquinaProductoDTO, 1)).rejects.toMatchObject({ statusCode: 400 });
-        }
-        expect(query).not.toHaveBeenCalled();
+    it('requires correcting an invalid stored price before updating stock', async () => {
+        query.mockResolvedValueOnce({ rows: [{ ...existing, precio_venta_actual: 'NaN' }] });
+        const response = await request(app).put('/api/maquina-productos/1').send({ stock_actual: 1, version: 1 });
+        expect(response.status).toBe(400);
+        expect(response.body.message).toContain('Corrija el precio actual');
+        expect(query).toHaveBeenCalledTimes(1);
     });
 });

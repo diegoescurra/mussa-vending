@@ -1,8 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
+import { useMemo } from 'react';
 import { conteosService, type ConteoDetalle } from '../services/conteos.service';
 import { StateMessage } from './StateMessage';
 import { DataTable } from './table/DataTable';
+import { HistoryLoadMore } from './table/HistoryLoadMore';
 
 const dateFormatter = new Intl.DateTimeFormat('es-CL', { dateStyle: 'short', timeStyle: 'short' });
 const columns: ColumnDef<ConteoDetalle>[] = [
@@ -19,14 +21,25 @@ const columns: ColumnDef<ConteoDetalle>[] = [
 ];
 
 export const ConteosInventario = ({ idCamioneta }: { idCamioneta?: number }) => {
-  const conteos = useQuery({ queryKey: ['conteos', idCamioneta ?? 'central'], queryFn: () => conteosService.getAll(idCamioneta) });
+  const conteos = useInfiniteQuery({
+    queryKey: ['conteos', idCamioneta ?? 'central'],
+    queryFn: ({ pageParam }) => conteosService.getPage(idCamioneta, pageParam),
+    initialPageParam: null as number | null,
+    getNextPageParam: (page) => page.nextCursor,
+  });
+  const conteoRows = useMemo(() => conteos.data?.pages.flatMap((page) => page.items) ?? [], [conteos.data]);
   return (
     <>
       <h3 className="mb-2 mt-8 text-xl font-bold text-slate-950">Historial de conteos fisicos</h3>
       <p className="mb-4 text-sm text-slate-600">Los conteos no ajustan stock automaticamente ni crean movimientos.</p>
-      {conteos.isLoading ? <StateMessage title="Cargando conteos" description="Obteniendo el historial de auditoria." /> : conteos.isError ? (
+      {conteos.isLoading ? <StateMessage title="Cargando conteos" description="Obteniendo el historial de auditoria." /> : conteos.isError && !conteos.data ? (
         <StateMessage title="No se pudieron cargar los conteos" description={conteos.error.message} />
-      ) : <DataTable columns={columns} data={conteos.data ?? []} searchPlaceholder="Buscar conteo..." emptyMessage="No hay conteos registrados." />}
+      ) : (
+        <>
+          <DataTable columns={columns} data={conteoRows} searchPlaceholder="Buscar en los conteos cargados..." emptyMessage="No hay conteos para mostrar." />
+          <HistoryLoadMore query={conteos} />
+        </>
+      )}
     </>
   );
 };

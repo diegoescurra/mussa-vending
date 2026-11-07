@@ -9,6 +9,7 @@ const app = createTestApp(router);
 const mockedService = jest.mocked(service);
 
 const payload = {
+  id_operacion: '11111111-1111-4111-8111-111111111111',
   id_maquina: 1,
   id_repartidor: 2,
   dinero_retirado: 5000,
@@ -16,6 +17,7 @@ const payload = {
   diferencia_dinero: 500,
   detalles: [{
     id_maquina_producto: 2,
+    version: 1,
     stock_sistema: 10,
     stock_encontrado: 6,
     cantidad_vendida: 4,

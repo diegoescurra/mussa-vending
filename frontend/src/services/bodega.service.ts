@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, type HistoryPage } from './api';
 
 export type BodegaProducto = {
   id_producto: number;
@@ -27,6 +27,8 @@ export type BodegaMovimientoDetalle = BodegaMovimiento & {
 
 export const bodegaService = {
   getInventario: () => api.get<BodegaProducto[]>('/bodega'),
-  getMovimientos: () => api.get<BodegaMovimientoDetalle[]>('/bodega/movimientos'),
+  getMovimientos: (antesDe: number | null) => api.get<HistoryPage<BodegaMovimientoDetalle>>(
+    antesDe === null ? '/bodega/movimientos' : `/bodega/movimientos?antes_de=${antesDe}`,
+  ),
   createMovimiento: (payload: CreateBodegaMovimientoPayload) => api.post<BodegaMovimiento>('/bodega/movimientos', payload),
 };

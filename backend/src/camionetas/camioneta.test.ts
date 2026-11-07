@@ -79,22 +79,23 @@ describe('camionetas CRUD', () => {
   });
 
   it('updates all fields including estado false', async () => {
-    query.mockResolvedValueOnce({ rows: [camioneta] }).mockResolvedValueOnce({ rows: [{ ...camioneta, estado: false }] });
+    query.mockResolvedValueOnce({ rows: [{ ...camioneta, estado: false }] });
     const response = await request(app).put('/api/camionetas/1').send({ ...payload, estado: false });
     expect(response.status).toBe(200);
     expect(response.body.data.estado).toBe(false);
-    expect(query.mock.calls[1][1]).toEqual(['ABCD12', 'Camioneta 1', 2, false, 1]);
-    expect(query.mock.calls[1][0]).toContain("u.rol = 'REPONEDOR' AND u.estado = true");
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0][1]).toEqual(['ABCD12', 'Camioneta 1', 2, false, 1]);
+    expect(query.mock.calls[0][0]).toContain("u.rol = 'REPONEDOR' AND u.estado = true");
   });
 
   it('rejects an unavailable assignment on update', async () => {
-    query.mockResolvedValueOnce({ rows: [camioneta] });
+    query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [camioneta] });
     const response = await request(app).put('/api/camionetas/1').send(payload);
     expect(response.status).toBe(400);
   });
 
   it('reports a duplicate repartidor on update', async () => {
-    query.mockResolvedValueOnce({ rows: [camioneta] }).mockRejectedValueOnce({ code: '23505' });
+    query.mockRejectedValueOnce({ code: '23505' });
     const response = await request(app).put('/api/camionetas/1').send(payload);
     expect(response.status).toBe(409);
   });
@@ -102,7 +103,7 @@ describe('camionetas CRUD', () => {
   it('returns 404 when updating a missing camioneta', async () => {
     const response = await request(app).put('/api/camionetas/99').send(payload);
     expect(response.status).toBe(404);
-    expect(query).toHaveBeenCalledTimes(1);
+    expect(query).toHaveBeenCalledTimes(2);
   });
 
   it('deletes a camioneta', async () => {

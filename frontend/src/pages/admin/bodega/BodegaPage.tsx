@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { FormActions } from '../../../components/forms/FormActions';
 import { NumberField } from '../../../components/forms/NumberField';
 import { SelectField } from '../../../components/forms/SelectField';
@@ -9,6 +9,7 @@ import { Modal } from '../../../components/Modal';
 import { PageHeader } from '../../../components/PageHeader';
 import { StateMessage } from '../../../components/StateMessage';
 import { DataTable } from '../../../components/table/DataTable';
+import { HistoryLoadMore } from '../../../components/table/HistoryLoadMore';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { bodegaService, type BodegaProducto, type BodegaMovimientoDetalle, type CreateBodegaMovimientoPayload } from '../../../services/bodega.service';
 import { EntregaCamionetaModal } from './EntregaCamionetaModal';
@@ -41,7 +42,13 @@ const emptyForm = { id_producto: '', tipo: 'ENTRADA' as CreateBodegaMovimientoPa
 export const BodegaPage = () => {
   const queryClient = useQueryClient();
   const inventario = useQuery({ queryKey: ['bodega'], queryFn: bodegaService.getInventario });
-  const movimientos = useQuery({ queryKey: ['bodega-movimientos'], queryFn: bodegaService.getMovimientos });
+  const movimientos = useInfiniteQuery({
+    queryKey: ['bodega-movimientos'],
+    queryFn: ({ pageParam }) => bodegaService.getMovimientos(pageParam),
+    initialPageParam: null as number | null,
+    getNextPageParam: (page) => page.nextCursor,
+  });
+  const movimientoRows = useMemo(() => movimientos.data?.pages.flatMap((page) => page.items) ?? [], [movimientos.data]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEntregaOpen, setIsEntregaOpen] = useState(false);
   const [isConteoOpen, setIsConteoOpen] = useState(false);
@@ -126,10 +133,13 @@ export const BodegaPage = () => {
       <h3 className="mb-4 mt-8 text-xl font-bold text-slate-950">Historial de movimientos</h3>
       {movimientos.isLoading ? (
         <StateMessage title="Cargando movimientos" description="Obteniendo el historial de bodega." />
-      ) : movimientos.isError ? (
+      ) : movimientos.isError && !movimientos.data ? (
         <StateMessage title="No se pudieron cargar los movimientos" description={movimientos.error.message} />
       ) : (
-        <DataTable columns={movimientoColumns} data={movimientos.data ?? []} searchPlaceholder="Buscar movimiento..." emptyMessage="No hay movimientos registrados." />
+        <>
+          <DataTable columns={movimientoColumns} data={movimientoRows} searchPlaceholder="Buscar en los movimientos cargados..." emptyMessage="No hay movimientos para mostrar." />
+          <HistoryLoadMore query={movimientos} />
+        </>
       )}
       <ConteosInventario />
       {isConteoOpen ? <ConteoInventarioModal inventario={inventario.data} inventarioReady={inventario.isSuccess && !inventario.isFetching} onClose={() => setIsConteoOpen(false)} /> : null}

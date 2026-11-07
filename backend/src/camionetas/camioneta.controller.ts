@@ -1,7 +1,9 @@
 import { AppError } from '../utils/AppError.js';
-import { asyncHandler } from '../utils/AsyncHandler.js';
+import type { RequestHandler } from 'express';
+import { parseHistoryMaxId } from '../utils/historyPage.js';
 import { deleteCamioneta, getAllCamionetas, getCamionetaById, saveCamioneta } from './camioneta.service.js';
 import { createCargaCamioneta, getInventarioCamioneta, getMovimientosCamioneta } from './camioneta-inventario.service.js';
+import { validateCamionetaBody, validateCargaBody } from './camioneta.validation.js';
 
 const parseId = (value: unknown) => {
   const id = Number(value);
@@ -9,36 +11,38 @@ const parseId = (value: unknown) => {
   return id;
 };
 
-export const getCamionetasController = asyncHandler(async (_req, res) => {
+export const getCamionetasController: RequestHandler = async (_req, res) => {
   res.json({ status: 'success', data: await getAllCamionetas() });
-});
+};
 
-export const getCamionetaController = asyncHandler(async (req, res) => {
+export const getCamionetaController: RequestHandler = async (req, res) => {
   res.json({ status: 'success', data: await getCamionetaById(parseId(req.params.id)) });
-});
+};
 
-export const createCamionetaController = asyncHandler(async (req, res) => {
-  res.status(201).json({ status: 'success', data: await saveCamioneta(req.body) });
-});
+export const createCamionetaController: RequestHandler = async (req, res) => {
+  res.status(201).json({ status: 'success', data: await saveCamioneta(validateCamionetaBody(req.body)) });
+};
 
-export const updateCamionetaController = asyncHandler(async (req, res) => {
-  res.json({ status: 'success', data: await saveCamioneta(req.body, parseId(req.params.id)) });
-});
+export const updateCamionetaController: RequestHandler = async (req, res) => {
+  const id = parseId(req.params.id);
+  res.json({ status: 'success', data: await saveCamioneta(validateCamionetaBody(req.body), id) });
+};
 
-export const deleteCamionetaController = asyncHandler(async (req, res) => {
+export const deleteCamionetaController: RequestHandler = async (req, res) => {
   await deleteCamioneta(parseId(req.params.id));
   res.status(204).send();
-});
+};
 
-export const getInventarioCamionetaController = asyncHandler(async (req, res) => {
+export const getInventarioCamionetaController: RequestHandler = async (req, res) => {
   res.json({ status: 'success', data: await getInventarioCamioneta(parseId(req.params.id)) });
-});
+};
 
-export const getMovimientosCamionetaController = asyncHandler(async (req, res) => {
-  res.json({ status: 'success', data: await getMovimientosCamioneta(parseId(req.params.id)) });
-});
+export const getMovimientosCamionetaController: RequestHandler = async (req, res) => {
+  const data = await getMovimientosCamioneta(parseId(req.params.id), parseHistoryMaxId(req.query.antes_de));
+  res.json({ status: 'success', data });
+};
 
-export const createCargaCamionetaController = asyncHandler(async (req, res) => {
-  const movimiento = await createCargaCamioneta(parseId(req.params.id), req.body);
+export const createCargaCamionetaController: RequestHandler = async (req, res) => {
+  const movimiento = await createCargaCamioneta(parseId(req.params.id), validateCargaBody(req.body));
   res.status(201).json({ status: 'success', data: movimiento });
-});
+};

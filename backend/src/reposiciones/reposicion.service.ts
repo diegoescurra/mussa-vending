@@ -1,62 +1,15 @@
 import pool from '../config/db.js';
+import * as repository from './reposicion.repository.js';
 import { AppError } from '../utils/AppError.js';
-import type { CreateReposicionDTO } from './reposicion.type.js';
-
-const isNonNegativeNumber = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isFinite(value) && value >= 0;
-
-const isNonNegativeInteger = (value: unknown): value is number =>
-  Number.isInteger(value) && (value as number) >= 0 && (value as number) <= 2147483647;
+import { isNonNegativeInt32, isPositiveInt32 } from '../utils/int32.js';
+import type { CreateReposicionDTO } from './reposicion.dto.js';
 
 const sameAmount = (left: number, right: number) => Math.abs(left - right) < 0.0001;
 
 export const createReposicion = async (reposicion: CreateReposicionDTO) => {
-  if (!reposicion || typeof reposicion.id_operacion !== 'string'
-    || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reposicion.id_operacion)) {
-    throw new AppError('Debe enviar un identificador unico de operacion UUID', 400);
-  }
-  if (!reposicion || typeof reposicion !== 'object' || !isNonNegativeInteger(reposicion.id_maquina) || reposicion.id_maquina <= 0) {
-    throw new AppError('La maquina es obligatoria', 400);
-  }
-
-  if (!isNonNegativeInteger(reposicion.id_repartidor) || reposicion.id_repartidor <= 0) {
-    throw new AppError('Debe seleccionar un repartidor valido', 400);
-  }
-  if (reposicion.observacion !== undefined && typeof reposicion.observacion !== 'string') {
-    throw new AppError('La observacion debe ser texto', 400);
-  }
-
-  if (!isNonNegativeNumber(reposicion.dinero_retirado) || !Array.isArray(reposicion.detalles) || reposicion.detalles.length === 0) {
-    throw new AppError('Debe enviar dinero retirado y al menos un detalle', 400);
-  }
-
-  const detalleIds = new Set<number>();
-  for (const detalle of reposicion.detalles) {
-    if (!detalle || typeof detalle !== 'object') {
-      throw new AppError('Los detalles de reposicion contienen valores invalidos', 400);
-    }
-
-    const values = [
-      detalle.id_maquina_producto,
-      detalle.stock_sistema,
-      detalle.stock_encontrado,
-      detalle.cantidad_vendida,
-      detalle.cantidad_repuesta,
-      detalle.cantidad_retirada,
-      detalle.stock_final,
-      detalle.precio_venta_actual,
-      detalle.venta_esperada,
-    ];
-
-    if (!isNonNegativeInteger(detalle.id_maquina_producto) || detalle.id_maquina_producto <= 0 || !isNonNegativeInteger(detalle.stock_sistema) || !isNonNegativeInteger(detalle.stock_encontrado) || !isNonNegativeInteger(detalle.cantidad_vendida) || !isNonNegativeInteger(detalle.cantidad_repuesta) || !isNonNegativeInteger(detalle.cantidad_retirada) || !isNonNegativeInteger(detalle.stock_final) || values.slice(7).some((value) => !isNonNegativeNumber(value))) {
-      throw new AppError('Los detalles de reposicion contienen valores invalidos', 400);
-    }
-
-    if (detalleIds.has(detalle.id_maquina_producto)) {
-      throw new AppError('Un producto de maquina solo puede incluirse una vez', 400);
-    }
-
-    detalleIds.add(detalle.id_maquina_producto);
+  const detalleIds = new Set(reposicion.detalles.map(detalle => detalle.id_maquina_producto));
+  if (detalleIds.size !== reposicion.detalles.length) {
+    throw new AppError('Un producto de maquina solo puede incluirse una vez', 400);
   }
 
   const client = await pool.connect();
@@ -65,49 +18,35 @@ export const createReposicion = async (reposicion: CreateReposicionDTO) => {
     await client.query('BEGIN');
     // The unique key serializes concurrent retries; rollback also releases the claim.
     const solicitud = JSON.stringify(reposicion);
-    const { rows: claim } = await client.query(
-      `INSERT INTO reposicion_operaciones (id_operacion, solicitud) VALUES ($1, $2::jsonb)
-       ON CONFLICT (id_operacion) DO NOTHING RETURNING id_operacion`,
-      [reposicion.id_operacion, solicitud],
-    );
+    const claim = await repository.claimOperation(client, reposicion.id_operacion, solicitud);
     if (!claim.length) {
-      const { rows } = await client.query(
-        `SELECT solicitud = $2::jsonb AS coincide, respuesta FROM reposicion_operaciones WHERE id_operacion = $1`,
-        [reposicion.id_operacion, solicitud],
-      );
+      const rows = await repository.findOperation(client, reposicion.id_operacion, solicitud);
       if (!rows[0]?.coincide) throw new AppError('Esta operacion ya fue usada con otros datos', 409);
       if (!rows[0].respuesta) throw new AppError('Operacion incompleta; reintente con el mismo identificador', 409);
       await client.query('COMMIT');
       return rows[0].respuesta;
     }
-    const { rows: camionetas } = await client.query(
-      'SELECT id_camioneta, estado FROM camionetas WHERE id_repartidor = $1 FOR SHARE',
-      [reposicion.id_repartidor],
-    );
+
+    // Las operaciones guardadas antes del cambio se pueden reintentar con su solicitud original.
+    if (reposicion.detalles.some(({ version }) => !isPositiveInt32(version))) {
+      throw new AppError('Recargue la reposicion antes de guardar: falta una version valida de inventario', 400);
+    }
+
+    const camionetas = await repository.lockTruckByDriver(client, reposicion.id_repartidor);
     const camioneta = camionetas[0];
     if (!camioneta?.estado) throw new AppError('El repartidor no tiene una camioneta activa asignada', 400);
-    const { rows: usuarios } = await client.query(
-      'SELECT rol, estado FROM usuarios WHERE id_usuario = $1 FOR SHARE', [reposicion.id_repartidor],
-    );
+    const usuarios = await repository.lockDriver(client, reposicion.id_repartidor);
     if (!usuarios[0]?.estado || usuarios[0].rol !== 'REPONEDOR') {
       throw new AppError('El repartidor debe ser un usuario REPONEDOR activo', 400);
     }
-    const { rows: maquinas } = await client.query(
-      'SELECT estado FROM maquinas WHERE id_maquina = $1 FOR SHARE', [reposicion.id_maquina],
-    );
+    const maquinas = await repository.lockMachine(client, reposicion.id_maquina);
     if (!maquinas.length) throw new AppError('Maquina no encontrada', 404);
     if (maquinas[0].estado !== 'ACTIVA') throw new AppError('La maquina debe estar activa', 400);
     const detallesCalculados = [];
     const cantidadesPorProducto = new Map<number, number>();
 
     for (const detalle of [...reposicion.detalles].sort((a, b) => a.id_maquina_producto - b.id_maquina_producto)) {
-      const { rows } = await client.query(
-        `SELECT id_maquina_producto, id_producto, stock_actual, capacidad_maxima, precio_venta_actual, estado
-         FROM maquina_productos
-         WHERE id_maquina_producto = $1 AND id_maquina = $2
-         FOR UPDATE`,
-        [detalle.id_maquina_producto, reposicion.id_maquina],
-      );
+      const rows = await repository.lockSlot(client, detalle.id_maquina_producto, reposicion.id_maquina);
       const inventario = rows[0];
 
       if (!inventario) {
@@ -122,7 +61,9 @@ export const createReposicion = async (reposicion: CreateReposicionDTO) => {
       const stockFinal = detalle.stock_encontrado + detalle.cantidad_repuesta - detalle.cantidad_retirada;
       const ventaEsperada = cantidadVendida * precioVenta;
 
-      if (!sameAmount(detalle.stock_sistema, stockSistema) || !sameAmount(detalle.precio_venta_actual, precioVenta)) {
+      if (detalle.version !== inventario.version
+        || !sameAmount(detalle.stock_sistema, stockSistema)
+        || !sameAmount(detalle.precio_venta_actual, precioVenta)) {
         throw new AppError('El inventario o precio fue actualizado; recargue la reposicion antes de guardar', 409);
       }
 
@@ -139,7 +80,7 @@ export const createReposicion = async (reposicion: CreateReposicionDTO) => {
         venta_esperada: ventaEsperada,
       });
       const cantidadTotal = (cantidadesPorProducto.get(inventario.id_producto) ?? 0) + detalle.cantidad_repuesta;
-      if (!isNonNegativeInteger(cantidadTotal)) throw new AppError('Cantidad total repuesta fuera del rango permitido', 400);
+      if (!isNonNegativeInt32(cantidadTotal)) throw new AppError('Cantidad total repuesta fuera del rango permitido', 400);
       cantidadesPorProducto.set(inventario.id_producto, cantidadTotal);
     }
 
@@ -147,65 +88,26 @@ export const createReposicion = async (reposicion: CreateReposicionDTO) => {
     const salidasCamioneta = [];
     for (const [idProducto, cantidad] of [...cantidadesPorProducto].sort(([a], [b]) => a - b)) {
       if (cantidad === 0) continue;
-      const { rows } = await client.query(
-        `UPDATE camioneta_productos SET stock_actual = stock_actual - $1
-         WHERE id_camioneta = $2 AND id_producto = $3 AND stock_actual >= $1
-         RETURNING stock_actual`,
-        [cantidad, camioneta.id_camioneta, idProducto],
-      );
+      const rows = await repository.deductTruckStock(client, cantidad, camioneta.id_camioneta, idProducto);
       if (!rows.length) throw new AppError('Stock insuficiente en camioneta; revise las cantidades a reponer', 409);
       salidasCamioneta.push({ id_producto: idProducto, cantidad, stock_final: rows[0].stock_actual });
     }
 
     const ventaEsperada = detallesCalculados.reduce((total, detalle) => total + detalle.venta_esperada, 0);
     const diferenciaDinero = reposicion.dinero_retirado - ventaEsperada;
-    const { rows: reposiciones } = await client.query(
-      `INSERT INTO reposiciones (id_maquina, dinero_retirado, observacion, venta_esperada, diferencia_dinero, id_camioneta, id_repartidor)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING *`,
-      [reposicion.id_maquina, reposicion.dinero_retirado, reposicion.observacion ?? null, ventaEsperada, diferenciaDinero, camioneta.id_camioneta, reposicion.id_repartidor],
-    );
-    const nuevaReposicion = reposiciones[0];
+    const nuevaReposicion = await repository.insertRestock(client, reposicion, camioneta.id_camioneta, ventaEsperada, diferenciaDinero);
 
     for (const detalle of detallesCalculados) {
-      await client.query(
-        `INSERT INTO reposicion_detalles (
-          id_reposicion, id_maquina_producto, stock_sistema, stock_encontrado,
-          cantidad_vendida, cantidad_repuesta, cantidad_retirada, stock_final,
-          precio_venta_actual, venta_esperada
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [
-          nuevaReposicion.id_reposicion,
-          detalle.id_maquina_producto,
-          detalle.stock_sistema,
-          detalle.stock_encontrado,
-          detalle.cantidad_vendida,
-          detalle.cantidad_repuesta,
-          detalle.cantidad_retirada,
-          detalle.stock_final,
-          detalle.precio_venta_actual,
-          detalle.venta_esperada,
-        ],
-      );
-      await client.query(
-        'UPDATE maquina_productos SET stock_actual = $1 WHERE id_maquina_producto = $2',
-        [detalle.stock_final, detalle.id_maquina_producto],
-      );
+      await repository.insertDetail(client, nuevaReposicion.id_reposicion, detalle);
+      await repository.updateSlotStock(client, detalle.stock_final, detalle.id_maquina_producto);
     }
 
     for (const salida of salidasCamioneta) {
-      await client.query(
-        `INSERT INTO camioneta_movimientos
-         (id_camioneta, id_producto, id_repartidor, tipo, cantidad, stock_final, id_reposicion, id_maquina, observacion)
-         VALUES ($1, $2, $3, 'SALIDA', $4, $5, $6, $7, $8)`,
-        [camioneta.id_camioneta, salida.id_producto, reposicion.id_repartidor, salida.cantidad,
-          salida.stock_final, nuevaReposicion.id_reposicion, reposicion.id_maquina, reposicion.observacion ?? null],
-      );
+      await repository.insertTruckMovement(client, reposicion, camioneta.id_camioneta, nuevaReposicion.id_reposicion, salida);
     }
 
     const respuesta = { ...nuevaReposicion, detalles: detallesCalculados };
-    await client.query('UPDATE reposicion_operaciones SET respuesta = $2::jsonb WHERE id_operacion = $1',
-      [reposicion.id_operacion, JSON.stringify(respuesta)]);
+    await repository.completeOperation(client, reposicion.id_operacion, JSON.stringify(respuesta));
     await client.query('COMMIT');
     return respuesta;
   } catch (error) {

@@ -15,6 +15,11 @@
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.27.0",
+  "pnpm": {
+    "overrides": {
+      "express>body-parser": "^2.4.0"
+    }
+  },
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.2.1",

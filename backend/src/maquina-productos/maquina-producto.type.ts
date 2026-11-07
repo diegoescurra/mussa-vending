@@ -4,24 +4,9 @@ export interface MaquinaProducto {
   id_producto: number;
   capacidad_maxima: number;
   stock_actual: number;
-  precio_venta_actual: number;
-  estado: boolean;
-}
-
-export interface CreateMaquinaProductoDTO {
-  id_maquina: number;
-  id_producto: number;
-  capacidad_maxima: number;
-  stock_actual: number;
-  precio_venta_actual: number;
-}
-
-export interface UpdateMaquinaProductoDTO {
+  precio_venta_actual: string;
   version: number;
-  capacidad_maxima?: number;
-  stock_actual?: number;
-  precio_venta_actual?: number;
-  estado?: boolean;
+  estado: boolean;
 }
 
 export interface MaquinaProductoDetalle extends MaquinaProducto {

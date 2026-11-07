@@ -65,7 +65,14 @@ describe('dashboard service and route', () => {
     },
   );
 
-  it('returns the empty contract in the shared API success envelope', async () => {
+  it('rejects a 31-day period before running any query', async () => {
+    const response = await request(app).get('/api/dashboard').query({ desde: periodo.desde, hasta: '2026-10-01' });
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain('30 días calendario');
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('accepts a 30-day period and returns the empty contract in the success envelope', async () => {
     const response = await request(app).get('/api/dashboard').query(periodo);
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ status: 'success', data: emptyDashboard });
@@ -301,9 +308,7 @@ describe('dashboard service and route', () => {
     expect(productsSql).not.toMatch(/precio_venta|r.dinero_retirado|p.estado/);
   });
 
-  it('validates service inputs and propagates DB errors through the middleware', async () => {
-    await expect(getDashboard(null, periodo.hasta)).rejects.toMatchObject({ statusCode: 400 });
-    expect(query).not.toHaveBeenCalled();
+  it('propagates DB errors through the middleware', async () => {
     query.mockRejectedValue(new Error('Database unavailable'));
     expect((await request(app).get('/api/dashboard').query(periodo)).status).toBe(500);
   });

@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, type HistoryPage } from './api';
 
 export type Camioneta = {
   id_camioneta: number;
@@ -61,6 +61,8 @@ export const camionetasService = {
   update: (id: number, payload: CamionetaPayload) => api.put<Omit<Camioneta, 'repartidor_nombre' | 'repartidor_apellido'>>(`/camionetas/${id}`, payload),
   delete: (id: number) => api.delete<void>(`/camionetas/${id}`),
   getInventario: (id: number) => api.get<CamionetaProducto[]>(`/camionetas/${id}/inventario`),
-  getMovimientos: (id: number) => api.get<CamionetaMovimientoDetalle[]>(`/camionetas/${id}/movimientos`),
+  getMovimientos: (id: number, antesDe: number | null) => api.get<HistoryPage<CamionetaMovimientoDetalle>>(
+    `/camionetas/${id}/movimientos${antesDe === null ? '' : `?antes_de=${antesDe}`}`,
+  ),
   createCarga: (id: number, payload: CreateCamionetaCargaPayload) => api.post<CamionetaMovimiento>(`/camionetas/${id}/cargas`, payload),
 };

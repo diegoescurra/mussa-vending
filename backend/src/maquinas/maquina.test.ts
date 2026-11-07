@@ -2,12 +2,17 @@ import request from 'supertest';
 import { createTestApp } from '../test-utils/createTestApp.js';
 import router from './route.maquina.js';
 import * as service from './service.maquina.js';
+import type { CreateMaquinaDTO } from './maquina.dto.js';
+import type { SistemaPago } from './type.maquina.js';
 
 jest.mock('./service.maquina.js');
 
 const app = createTestApp(router);
 const mockedService = jest.mocked(service);
-const payload = { codigo: 'M-001', nombre: 'Maquina 1', descripcion: 'Desc', ubicacion: 'Local', estado: 'ACTIVA', modelo: 'Modelo 1', sistemas_pago: ['MONEDA', 'TARJETA'] };
+const payload: CreateMaquinaDTO = { codigo: 'M-001', nombre: 'Maquina 1', descripcion: 'Desc', ubicacion: 'Local', estado: 'ACTIVA', modelo: 'Modelo 1', sistemas_pago: ['MONEDA', 'TARJETA'] };
+const maquina = { id_maquina: 1, ...payload, fecha_creacion: new Date('2026-01-01T00:00:00Z') };
+const maquinaJson = { ...maquina, fecha_creacion: maquina.fecha_creacion.toISOString() };
+const configuraciones: SistemaPago[][] = [['MONEDA'], ['BILLETE'], ['TARJETA'], ['TARJETA', 'MONEDA', 'BILLETE']];
 
 describe('maquinas routes', () => {
   beforeEach(() => {
@@ -15,20 +20,20 @@ describe('maquinas routes', () => {
   });
 
   it('GET /api/maquinas returns maquinas', async () => {
-    mockedService.getAllMaquinas.mockResolvedValue([{ id_maquina: 1, nombre: 'M1', modelo: '', sistemas_pago: [] }]);
+    mockedService.getAllMaquinas.mockResolvedValue([maquina]);
 
     const response = await request(app).get('/api/maquinas');
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ status: 'success', data: [{ id_maquina: 1, nombre: 'M1', modelo: '', sistemas_pago: [] }] });
+    expect(response.body).toEqual({ status: 'success', data: [maquinaJson] });
   });
 
   it('GET /api/maquinas/:id returns legacy configuration unchanged', async () => {
-    const legacy = { id_maquina: 1, modelo: '', sistemas_pago: [] };
+    const legacy = { ...maquina, modelo: '', sistemas_pago: [] };
     mockedService.getMaquinaById.mockResolvedValue(legacy);
     const response = await request(app).get('/api/maquinas/1');
     expect(response.status).toBe(200);
-    expect(response.body.data).toEqual(legacy);
+    expect(response.body.data).toEqual({ ...maquinaJson, modelo: '', sistemas_pago: [] });
   });
 
   it('GET /api/maquinas/:id returns 404 when maquina does not exist', async () => {
@@ -40,13 +45,19 @@ describe('maquinas routes', () => {
     expect(response.body.message).toBe('Maquina no encontrada');
   });
 
+  it('rejects a machine ID outside the database integer range before calling the service', async () => {
+    const response = await request(app).put('/api/maquinas/2147483648').send(payload);
+    expect(response.status).toBe(400);
+    expect(mockedService.updateMaquina).not.toHaveBeenCalled();
+  });
+
   it('POST /api/maquinas creates a maquina', async () => {
-    mockedService.createMaquina.mockResolvedValue({ id_maquina: 1, ...payload });
+    mockedService.createMaquina.mockResolvedValue(maquina);
 
     const response = await request(app).post('/api/maquinas').send(payload);
 
     expect(response.status).toBe(201);
-    expect(response.body.data).toEqual({ id_maquina: 1, ...payload });
+    expect(response.body.data).toEqual(maquinaJson);
     expect(mockedService.createMaquina).toHaveBeenCalledWith(payload);
   });
 
@@ -58,12 +69,12 @@ describe('maquinas routes', () => {
   });
 
   it('PUT /api/maquinas/:id updates a maquina', async () => {
-    mockedService.updateMaquina.mockResolvedValue({ id_maquina: 1, ...payload });
+    mockedService.updateMaquina.mockResolvedValue(maquina);
 
     const response = await request(app).put('/api/maquinas/1').send(payload);
 
     expect(response.status).toBe(200);
-    expect(response.body.data).toEqual({ id_maquina: 1, ...payload });
+    expect(response.body.data).toEqual(maquinaJson);
     expect(mockedService.updateMaquina).toHaveBeenCalledWith(payload, 1);
   });
 
@@ -85,14 +96,14 @@ describe('maquinas routes', () => {
     expect(mockedService.updateMaquina).not.toHaveBeenCalled();
   });
 
-  it.each([['MONEDA'], ['BILLETE'], ['TARJETA'], ['TARJETA', 'MONEDA', 'BILLETE']].map(sistemas_pago => ({ sistemas_pago })))('accepts payment configuration $sistemas_pago and trims modelo on POST and PUT', async ({ sistemas_pago }) => {
+  it.each(configuraciones.map(sistemas_pago => ({ sistemas_pago })))('accepts payment configuration $sistemas_pago and trims modelo on POST and PUT', async ({ sistemas_pago }) => {
     const normalized = { ...payload, modelo: 'Modelo del sur', sistemas_pago };
-    mockedService.createMaquina.mockResolvedValue({ id_maquina: 1, ...normalized });
-    mockedService.updateMaquina.mockResolvedValue({ id_maquina: 1, ...normalized });
+    mockedService.createMaquina.mockResolvedValue({ ...maquina, ...normalized });
+    mockedService.updateMaquina.mockResolvedValue({ ...maquina, ...normalized });
     for (const method of ['post', 'put'] as const) {
       const response = await request(app)[method](`/api/maquinas${method === 'put' ? '/1' : ''}`).send({ ...normalized, modelo: ' \tModelo del sur\n ' });
       expect(response.status).toBe(method === 'post' ? 201 : 200);
-      expect(response.body.data).toEqual({ id_maquina: 1, ...normalized });
+      expect(response.body.data).toEqual({ ...maquinaJson, ...normalized });
     }
     expect(mockedService.createMaquina).toHaveBeenCalledWith(normalized);
     expect(mockedService.updateMaquina).toHaveBeenCalledWith(normalized, 1);
@@ -106,7 +117,6 @@ describe('maquinas routes', () => {
   });
 
   it('DELETE /api/maquinas/:id deletes a maquina', async () => {
-    mockedService.getMaquinaById.mockResolvedValue({ id_maquina: 1 });
     mockedService.deleteMaquina.mockResolvedValue(undefined);
 
     const response = await request(app).delete('/api/maquinas/1');

@@ -1,5 +1,6 @@
 import { AppError } from "../utils/AppError.js";
-import { asyncHandler } from "../utils/AsyncHandler.js";
+import type { RequestHandler } from 'express';
+import { parsePositiveInt32 } from "../utils/int32.js";
 import {
   createProducto,
   deleteProducto,
@@ -7,18 +8,18 @@ import {
   getProductoById,
   updateProducto,
 } from "./producto.service.js";
-import type { CreateProductoDTO, Producto, UpdateProductoDTO } from "./producto.type.js";
+import { validateProductoBody } from "./producto.validation.js";
 
-export const getProductosController = asyncHandler(async (_req, res) => {
+export const getProductosController: RequestHandler = async (_req, res) => {
     const productos = await getAllProductos();
     res.json({
         status: 'success',
         data: productos
     })
-})
+};
 
-export const getProductoByIdController = asyncHandler(async (req, res) => {
-    const id = Number(req.params.id);
+export const getProductoByIdController: RequestHandler = async (req, res) => {
+    const id = parsePositiveInt32(req.params.id, 'ID de producto invalido');
     const producto = await getProductoById(id);
 
     if (!producto) {
@@ -29,62 +30,33 @@ export const getProductoByIdController = asyncHandler(async (req, res) => {
         status: 'success',
         data: producto
     });
-})
+};
 
-export const createProductoController = asyncHandler(async (req, res) => {
-    const { nombre, id_proveedor, precio_venta, costo_compra } = req.body;
-
-    if (!nombre || id_proveedor === undefined || precio_venta === undefined || costo_compra === undefined) {
-        throw new AppError('Todos los campos son obligatorios', 400);
-    }
-
-    const newProducto = await createProducto({
-        nombre,
-        precio_venta,
-        costo_compra,
-        id_proveedor,
-    } as CreateProductoDTO);
+export const createProductoController: RequestHandler = async (req, res) => {
+    const newProducto = await createProducto(validateProductoBody(req.body));
 
     res.status(201).json({
         status: 'success',
         data: newProducto
     });
-})
+};
 
-export const updateProductoController = asyncHandler(async (req, res) => {
-    const id = Number(req.params.id);
-    const { nombre, id_proveedor, precio_venta, costo_compra } = req.body;
-
-    if (!nombre || id_proveedor === undefined || precio_venta === undefined || costo_compra === undefined) {
-        throw new AppError('Todos los campos son obligatorios', 400);
-    }
-
- 
-    const updatedProducto = await updateProducto({
-        nombre,
-        precio_venta,
-        costo_compra,
-        id_proveedor,
-    } as UpdateProductoDTO, id as number);
+export const updateProductoController: RequestHandler = async (req, res) => {
+    const id = parsePositiveInt32(req.params.id, 'ID de producto invalido');
+    const updatedProducto = await updateProducto(validateProductoBody(req.body), id);
 
     res.json({
         status: 'success',
         data: updatedProducto
     });
-})
+};
 
-export const deleteProductoController = asyncHandler(async (req, res) => {
-    const id = Number(req.params.id);
-    const producto = await getProductoById(id);
-
-    if (!producto) {
-        throw new AppError('Producto no encontrado', 404);
-    }
-
+export const deleteProductoController: RequestHandler = async (req, res) => {
+    const id = parsePositiveInt32(req.params.id, 'ID de producto invalido');
     await deleteProducto(id);
 
     res.status(204).json({
         status: 'success',
         data: null
     });
-})
+};

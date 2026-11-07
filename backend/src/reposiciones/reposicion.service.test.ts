@@ -13,6 +13,7 @@ const query = jest.fn();
 const release = jest.fn();
 const detalle = {
   id_maquina_producto: 3,
+  version: 7,
   stock_sistema: 10,
   stock_encontrado: 6,
   cantidad_vendida: 999,
@@ -31,7 +32,7 @@ const payload = {
   diferencia_dinero: 999,
   detalles: [detalle],
 };
-const machineProduct = { id_maquina_producto: 3, id_producto: 5, stock_actual: 10, capacidad_maxima: 20, precio_venta_actual: '1000.00', estado: true };
+const machineProduct = { id_maquina_producto: 3, id_producto: 5, stock_actual: 10, capacidad_maxima: 20, precio_venta_actual: '1000.00', estado: true, version: 7 };
 
 const mockSuccess = () => {
   query.mockImplementation(async (sql: string) => {
@@ -84,6 +85,47 @@ describe('reposicion from assigned truck', () => {
     expect(response.status).toBe(409);
     expect(query.mock.calls.some(([sql]) => sql.includes('UPDATE camioneta_productos'))).toBe(false);
     expect(query).toHaveBeenLastCalledWith('ROLLBACK');
+  });
+
+  it('rejects a second draft with the same stock and price after the first advances the version', async () => {
+    const body = { ...payload, detalles: [{ ...detalle, cantidad_retirada: 0 }] };
+    const first = await request(app).post('/api/reposiciones').send(body);
+    expect(first.status).toBe(201);
+    expect(first.body.data.detalles[0].stock_final).toBe(machineProduct.stock_actual);
+
+    const success = query.getMockImplementation()!;
+    query.mockClear();
+    query.mockImplementation((sql: string, values: unknown) => sql.includes('FROM maquina_productos')
+      ? Promise.resolve({ rows: [{ ...machineProduct, version: 8 }] })
+      : success(sql, values));
+    const second = await request(app).post('/api/reposiciones')
+      .send({ ...body, id_operacion: '22222222-2222-4222-8222-222222222222' });
+
+    expect(second.status).toBe(409);
+    expect(query.mock.calls.some(([sql]) => sql.includes('UPDATE camioneta_productos') || sql.includes('INSERT INTO reposiciones '))).toBe(false);
+    expect(query).toHaveBeenLastCalledWith('ROLLBACK');
+  });
+
+  it.each([undefined, 0, '7'])('rejects new operations with invalid inventory version %s', async (version) => {
+    const response = await request(app).post('/api/reposiciones')
+      .send({ ...payload, detalles: [{ ...detalle, version }] });
+
+    expect(response.status).toBe(400);
+    expect(query).not.toHaveBeenCalledWith(expect.stringContaining('FROM maquina_productos'), expect.any(Array));
+    expect(query).toHaveBeenLastCalledWith('ROLLBACK');
+  });
+
+  it('replays an already saved operation whose original request had no version', async () => {
+    const respuesta = { id_reposicion: 9 };
+    query.mockImplementation(async (sql: string) => ({
+      rows: sql.includes('SELECT solicitud') ? [{ coincide: true, respuesta }] : [],
+    }));
+    const response = await request(app).post('/api/reposiciones')
+      .send({ ...payload, detalles: [{ ...detalle, version: undefined }] });
+
+    expect(response.status).toBe(201);
+    expect(response.body.data).toEqual(respuesta);
+    expect(query).toHaveBeenLastCalledWith('COMMIT');
   });
 
   it('uses the assigned truck, recalculates sales and updates both stocks atomically', async () => {

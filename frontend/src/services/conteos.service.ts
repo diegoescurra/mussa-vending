@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, type HistoryPage } from './api';
 
 export type Conteo = {
   id_conteo: number;
@@ -26,6 +26,11 @@ export type CreateConteoPayload = {
 };
 
 export const conteosService = {
-  getAll: (idCamioneta?: number) => api.get<ConteoDetalle[]>(idCamioneta === undefined ? '/conteos' : `/conteos?id_camioneta=${idCamioneta}`),
+  getPage: (idCamioneta: number | undefined, antesDe: number | null) => {
+    const params = new URLSearchParams();
+    if (idCamioneta !== undefined) params.set('id_camioneta', String(idCamioneta));
+    if (antesDe !== null) params.set('antes_de', String(antesDe));
+    return api.get<HistoryPage<ConteoDetalle>>(params.size ? `/conteos?${params}` : '/conteos');
+  },
   create: (payload: CreateConteoPayload) => api.post<Conteo>('/conteos', payload),
 };

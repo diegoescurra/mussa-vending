@@ -7,6 +7,9 @@ jest.mock('./maquina-producto.service.js');
 
 const app = createTestApp(router);
 const mockedService = jest.mocked(service);
+const payload = { id_maquina: 1, id_producto: 2, capacidad_maxima: 20, stock_actual: 10, precio_venta_actual: 1500 };
+const slot = { ...payload, id_maquina_producto: 1, precio_venta_actual: '1500.00', estado: true, version: 1 };
+const detalle = { ...slot, maquina_codigo: 'M-001', maquina_nombre: 'Maquina 1', maquina_ubicacion: 'Local', producto_nombre: 'Snack', proveedor_nombre: null };
 
 describe('maquina-productos routes', () => {
   beforeEach(() => {
@@ -14,12 +17,12 @@ describe('maquina-productos routes', () => {
   });
 
   it('GET /api/maquina-productos returns maquina productos', async () => {
-    mockedService.getAllMaquinaProductos.mockResolvedValue([{ id_maquina_producto: 1, producto_nombre: 'Snack' }]);
+    mockedService.getAllMaquinaProductos.mockResolvedValue([detalle]);
 
     const response = await request(app).get('/api/maquina-productos');
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ status: 'success', data: [{ id_maquina_producto: 1, producto_nombre: 'Snack' }] });
+    expect(response.body).toEqual({ status: 'success', data: [detalle] });
   });
 
   it('GET /api/maquina-productos/:id returns 404 when relation does not exist', async () => {
@@ -32,13 +35,12 @@ describe('maquina-productos routes', () => {
   });
 
   it('POST /api/maquina-productos creates a relation', async () => {
-    const payload = { id_maquina: 1, id_producto: 2, capacidad_maxima: 20, stock_actual: 10, precio_venta_actual: 1500 };
-    mockedService.createMaquinaProducto.mockResolvedValue({ id_maquina_producto: 1, ...payload });
+    mockedService.createMaquinaProducto.mockResolvedValue(slot);
 
     const response = await request(app).post('/api/maquina-productos').send(payload);
 
     expect(response.status).toBe(201);
-    expect(response.body.data).toEqual({ id_maquina_producto: 1, ...payload });
+    expect(response.body.data).toEqual(slot);
     expect(mockedService.createMaquinaProducto).toHaveBeenCalledWith(payload);
   });
 
@@ -50,13 +52,14 @@ describe('maquina-productos routes', () => {
   });
 
   it('PUT /api/maquina-productos/:id updates a relation partially', async () => {
-    const payload = { stock_actual: 12 };
-    mockedService.updateMaquinaProducto.mockResolvedValue({ id_maquina_producto: 1, stock_actual: 12 });
+    const payload = { stock_actual: 12, version: 1 };
+    const updated = { ...slot, stock_actual: 12, version: 2 };
+    mockedService.updateMaquinaProducto.mockResolvedValue(updated);
 
     const response = await request(app).put('/api/maquina-productos/1').send(payload);
 
     expect(response.status).toBe(200);
-    expect(response.body.data).toEqual({ id_maquina_producto: 1, stock_actual: 12 });
+    expect(response.body.data).toEqual(updated);
     expect(mockedService.updateMaquinaProducto).toHaveBeenCalledWith(payload, 1);
   });
 
@@ -68,7 +71,6 @@ describe('maquina-productos routes', () => {
   });
 
   it('DELETE /api/maquina-productos/:id deletes a relation', async () => {
-    mockedService.getMaquinaProductoById.mockResolvedValue({ id_maquina_producto: 1 });
     mockedService.deleteMaquinaProducto.mockResolvedValue(undefined);
 
     const response = await request(app).delete('/api/maquina-productos/1');

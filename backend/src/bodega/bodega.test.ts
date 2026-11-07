@@ -28,12 +28,27 @@ describe('bodega', () => {
     expect(response.body).toEqual({ status: 'success', data: inventario });
   });
 
-  it('returns movement history', async () => {
-    const movimientos = [{ id_movimiento: 1, ...payload, stock_final: 90 }];
-    (pool.query as jest.Mock).mockResolvedValue({ rows: movimientos });
-    const response = await request(app).get('/api/bodega/movimientos');
-    expect(response.status).toBe(200);
-    expect(response.body.data).toEqual(movimientos);
+  it('caps history by default and resumes after the last returned movement', async () => {
+    const movimientos = Array.from({ length: 52 }, (_, i) => ({ id_movimiento: 52 - i, ...payload }));
+    (pool.query as jest.Mock)
+      .mockResolvedValueOnce({ rows: movimientos.slice(0, 51) })
+      .mockResolvedValueOnce({ rows: movimientos.slice(50) });
+
+    const first = await request(app).get('/api/bodega/movimientos');
+    expect(first.status).toBe(200);
+    expect(first.body.data).toEqual({ items: movimientos.slice(0, 50), nextCursor: 3 });
+    expect(pool.query).toHaveBeenLastCalledWith(expect.stringContaining('LIMIT $2'), [2147483647, 51]);
+
+    const second = await request(app).get(`/api/bodega/movimientos?antes_de=${first.body.data.nextCursor}`);
+    expect(second.status).toBe(200);
+    expect(second.body.data).toEqual({ items: movimientos.slice(50), nextCursor: null });
+    expect(pool.query).toHaveBeenLastCalledWith(expect.stringContaining('m.id_movimiento <= $1'), [2, 51]);
+  });
+
+  it('rejects an ambiguous history cursor before querying the database', async () => {
+    const response = await request(app).get('/api/bodega/movimientos?antes_de=2&antes_de=3');
+    expect(response.status).toBe(400);
+    expect(pool.query).not.toHaveBeenCalled();
   });
 
   it.each(['ENTRADA', 'SALIDA'])('commits a %s with its updated balance', async (tipo) => {

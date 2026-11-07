@@ -1,4 +1,5 @@
 import { AppError } from '../utils/AppError.js';
+import type { CreateMaquinaProductoDTO, UpdateMaquinaProductoDTO } from './maquina-producto.dto.js';
 
 const INT32_MAX = 2147483647;
 
@@ -8,7 +9,9 @@ export const validateMaquinaProductoId = (id: unknown, message = 'Seleccione una
     }
 };
 
-export const validateMaquinaProducto = (body: unknown, create: boolean) => {
+export function validateMaquinaProductoBody(body: unknown, create: true): CreateMaquinaProductoDTO;
+export function validateMaquinaProductoBody(body: unknown, create: false): UpdateMaquinaProductoDTO;
+export function validateMaquinaProductoBody(body: unknown, create: boolean): object {
     if (typeof body !== 'object' || body === null || Array.isArray(body)) {
         throw new AppError('Los datos enviados deben ser un objeto', 400);
     }
@@ -45,7 +48,8 @@ export const validateMaquinaProducto = (body: unknown, create: boolean) => {
     if (!create && 'estado' in data && typeof data.estado !== 'boolean') {
         throw new AppError('Estado debe ser verdadero o falso', 400);
     }
-    if (typeof data.stock_actual === 'number' && typeof data.capacidad_maxima === 'number' && data.stock_actual > data.capacidad_maxima) {
-        throw new AppError('Stock actual no puede superar la capacidad maxima', 400);
+    if (!create) {
+        validateMaquinaProductoId(data.version, 'Recargue el inventario antes de editar: falta una version valida');
     }
-};
+    return data;
+}

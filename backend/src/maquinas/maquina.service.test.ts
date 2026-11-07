@@ -23,21 +23,19 @@ describe('maquinas routes with real service and mock database', () => {
     expect(response.body.data).toEqual(maquina);
     expect(query).toHaveBeenCalledTimes(1);
     expect(query).toHaveBeenCalledWith(
-      'INSERT INTO maquinas (codigo, nombre, descripcion, ubicacion, estado, modelo, sistemas_pago) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      'INSERT INTO maquinas (codigo, nombre, descripcion, ubicacion, estado, modelo, sistemas_pago) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id_maquina, codigo, nombre, descripcion, ubicacion, estado, fecha_creacion, modelo, sistemas_pago',
       ['M-001', 'Maquina 1', 'Desc', 'Local', 'ACTIVA', 'Modelo 1', ['BILLETE', 'MONEDA']],
     );
   });
 
-  it('configures a legacy row with complete PUT without inventory or history queries', async () => {
-    query.mockResolvedValueOnce({ rows: [{ ...maquina, modelo: '', sistemas_pago: [] }] })
-      .mockResolvedValueOnce({ rows: [maquina] });
+  it('configures a legacy row with a single UPDATE', async () => {
+    query.mockResolvedValueOnce({ rows: [maquina] });
     const response = await request(app).put('/api/maquinas/1').send({ ...payload, modelo: '\tModelo 1\n' });
     expect(response.status).toBe(200);
     expect(response.body.data).toEqual(maquina);
-    expect(query).toHaveBeenCalledTimes(2);
-    expect(query).toHaveBeenNthCalledWith(1, 'SELECT * FROM maquinas WHERE id_maquina = $1', [1]);
+    expect(query).toHaveBeenCalledTimes(1);
     expect(query).toHaveBeenLastCalledWith(
-      'UPDATE maquinas SET codigo = $1, nombre = $2, descripcion = $3, ubicacion = $4, estado = $5, modelo = $6, sistemas_pago = $7 WHERE id_maquina = $8 RETURNING *',
+      'UPDATE maquinas SET codigo = $1, nombre = $2, descripcion = $3, ubicacion = $4, estado = $5, modelo = $6, sistemas_pago = $7 WHERE id_maquina = $8 RETURNING id_maquina, codigo, nombre, descripcion, ubicacion, estado, fecha_creacion, modelo, sistemas_pago',
       ['M-001', 'Maquina 1', 'Desc', 'Local', 'ACTIVA', 'Modelo 1', ['BILLETE', 'MONEDA'], 1],
     );
   });
@@ -65,7 +63,7 @@ describe('maquinas routes with real service and mock database', () => {
     expect(response.body.data).toEqual(method === 'getById' ? legacy : [legacy]);
     expect(query).toHaveBeenCalledTimes(1);
     expect(query).toHaveBeenCalledWith(
-      method === 'getById' ? 'SELECT * FROM maquinas WHERE id_maquina = $1' : 'SELECT * FROM maquinas',
+      method === 'getById' ? 'SELECT id_maquina, codigo, nombre, descripcion, ubicacion, estado, fecha_creacion, modelo, sistemas_pago FROM maquinas WHERE id_maquina = $1' : 'SELECT id_maquina, codigo, nombre, descripcion, ubicacion, estado, fecha_creacion, modelo, sistemas_pago FROM maquinas',
       ...(method === 'getById' ? [[1]] : []),
     );
   });

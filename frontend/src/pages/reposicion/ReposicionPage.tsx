@@ -19,6 +19,7 @@ type LineState = {
 
 type ReposicionLine = {
   id_maquina_producto: number;
+  version: number;
   id_producto: number;
   producto_nombre: string;
   stock_actual: number;
@@ -87,6 +88,7 @@ export const ReposicionPage = () => {
   const [step, setStep] = useState<Step>(1);
   const [selectedMachineId, setSelectedMachineId] = useState('');
   const [selectedReponedorId, setSelectedReponedorId] = useState('');
+  const [reviewedProducts, setReviewedProducts] = useState<ReposicionLine[] | null>(null);
   const [lineState, setLineState] = useState<Record<number, LineState>>({});
   const [dineroRetirado, setDineroRetirado] = useState('');
   const [observacion, setObservacion] = useState('');
@@ -95,7 +97,7 @@ export const ReposicionPage = () => {
 
   const activeMachineId = selectedMachineId;
   const activeMachine = maquinas.find((machine) => String(machine.id_maquina) === activeMachineId);
-  const machineProducts = inventario.filter((item) => String(item.id_maquina) === activeMachineId && item.estado);
+  const machineProducts = reviewedProducts ?? inventario.filter((item) => String(item.id_maquina) === activeMachineId && item.estado);
   const reponedores = (usuariosQuery.data ?? []).filter((user) => user.estado && user.rol === 'REPONEDOR');
   const activeReponedor = reponedores.find((user) => String(user.id_usuario) === selectedReponedorId);
   const assignedTrucks = (camionetasQuery.data ?? []).filter((truck) => truck.estado && truck.id_repartidor === activeReponedor?.id_usuario);
@@ -191,6 +193,7 @@ export const ReposicionPage = () => {
     },
   });
   const locked = saveMutation.isPending || saveMutation.isSuccess;
+  const hasConflict = saveMutation.error instanceof ApiError && saveMutation.error.status === 409;
   const visibleStep = !dataReady && !locked && !pendingPayload ? 1 : step;
   const foundValid = machineProducts.every((item) => {
     const values = lineState[item.id_maquina_producto];
@@ -206,11 +209,17 @@ export const ReposicionPage = () => {
   const resetForm = () => {
     setPendingPayload(null);
     setStep(1);
+    setReviewedProducts(null);
     setLineState({});
     setDineroRetirado('');
     setObservacion('');
     setSavedResumen(null);
     saveMutation.reset();
+  };
+  const reloadInventory = () => {
+    resetForm();
+    void inventarioQuery.refetch();
+    if (activeTruck) void truckInventoryQuery.refetch();
   };
   const selectMachine = (id: string) => {
     if (locked || pendingPayload || id === selectedMachineId) return;
@@ -225,13 +234,18 @@ export const ReposicionPage = () => {
 
   const canGoNext = () => {
     if (!dataReady || locked) return false;
+    if (visibleStep === 1 && (inventarioQuery.isFetching || truckInventoryQuery.isFetching)) return false;
     if (visibleStep >= 3 && !foundValid) return false;
     if (visibleStep >= 4 && !quantitiesValid) return false;
     if (visibleStep >= 5 && !moneyValid) return false;
     return true;
   };
 
-  const goNext = () => { if (canGoNext()) setStep(Math.min(visibleStep + 1, 6) as Step); };
+  const goNext = () => {
+    if (!canGoNext()) return;
+    if (!reviewedProducts) setReviewedProducts(machineProducts);
+    setStep(Math.min(visibleStep + 1, 6) as Step);
+  };
   const goBack = () => { if (!locked && !pendingPayload) setStep(Math.max(visibleStep - 1, 1) as Step); };
 
   const buildPayload = (): CreateReposicionPayload => ({
@@ -244,6 +258,7 @@ export const ReposicionPage = () => {
     diferencia_dinero: resumen.diferencia,
     detalles: resumen.detalles.map((detalle) => ({
       id_maquina_producto: detalle.item.id_maquina_producto,
+      version: detalle.item.version,
       stock_sistema: detalle.item.stock_actual,
       stock_encontrado: detalle.stockEncontrado,
       cantidad_vendida: detalle.cantidadVendida,
@@ -424,6 +439,7 @@ export const ReposicionPage = () => {
               </button>
             )}
           </div>
+          {hasConflict && !pendingPayload ? <button type="button" onClick={reloadInventory} className="mt-3 w-full rounded-2xl border border-blue-200 px-4 py-3 text-sm font-semibold text-blue-700">Recargar inventario y empezar de nuevo</button> : null}
           {saveMutation.isSuccess ? <button type="button" onClick={() => { resetForm(); setSelectedMachineId(''); setSelectedReponedorId(''); }} className="mt-3 w-full rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white">Nueva reposición</button> : null}
         </section>
       </div>

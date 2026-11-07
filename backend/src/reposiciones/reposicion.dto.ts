@@ -1,5 +1,6 @@
 export type CreateReposicionDetalleDTO = {
   id_maquina_producto: number;
+  version?: unknown;
   stock_sistema: number;
   stock_encontrado: number;
   cantidad_vendida: number;

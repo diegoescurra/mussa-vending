@@ -21,7 +21,7 @@ const movimiento = { id_movimiento: 7, id_camioneta: 1, id_producto: 5, id_bodeg
 
 const mockDelivery = () => {
   query.mockImplementation(async (sql: string) => {
-    if (sql.startsWith('SELECT * FROM camionetas')) return { rows: [camioneta] };
+    if (sql.startsWith('SELECT nombre, patente, estado, id_repartidor FROM camionetas')) return { rows: [camioneta] };
     if (sql.includes('FROM usuarios')) return { rows: usuarios };
     if (sql.includes('FROM productos')) return { rows: [{ id_producto: 5, estado: true }] };
     if (sql.startsWith('UPDATE bodega_productos')) return { rows: [{ stock_actual: 70 }] };
@@ -51,10 +51,11 @@ describe('camioneta inventory and deliveries', () => {
 
   it('returns history using the recipient saved in each movement', async () => {
     (pool.query as jest.Mock).mockResolvedValueOnce({ rows: [camioneta] }).mockResolvedValueOnce({ rows: [movimiento] });
-    const response = await request(app).get('/api/camionetas/1/movimientos');
+    const response = await request(app).get('/api/camionetas/1/movimientos?antes_de=10');
     expect(response.status).toBe(200);
-    expect(response.body.data).toEqual([movimiento]);
+    expect(response.body.data).toEqual({ items: [movimiento], nextCursor: null });
     expect((pool.query as jest.Mock).mock.calls[1][0]).toContain('r.id_usuario = m.id_repartidor');
+    expect(pool.query).toHaveBeenLastCalledWith(expect.stringContaining('m.id_camioneta = $1 AND m.id_movimiento <= $2'), [1, 9, 51]);
   });
 
   it.each(['inventario', 'movimientos'])('returns 404 for a missing truck on %s', async (path) => {
@@ -95,8 +96,8 @@ describe('camioneta inventory and deliveries', () => {
   });
 
   it.each([
-    ['missing truck', 'SELECT * FROM camionetas', [], 404],
-    ['inactive truck', 'SELECT * FROM camionetas', [{ ...camioneta, estado: false }], 400],
+    ['missing truck', 'SELECT nombre, patente, estado, id_repartidor FROM camionetas', [], 404],
+    ['inactive truck', 'SELECT nombre, patente, estado, id_repartidor FROM camionetas', [{ ...camioneta, estado: false }], 400],
     ['missing admin', 'SELECT id_usuario', [usuarios[1]], 400],
     ['inactive admin', 'SELECT id_usuario', [{ ...usuarios[0], estado: false }, usuarios[1]], 400],
     ['wrong admin role', 'SELECT id_usuario', [{ ...usuarios[0], rol: 'REPONEDOR' }, usuarios[1]], 400],

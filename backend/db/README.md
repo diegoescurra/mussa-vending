@@ -12,12 +12,24 @@ En una base vacia, ejecuta estos archivos en orden desde el editor SQL de Neon:
 8. `migrations/007_create_missing_reposicion_detalles.sql`
 9. `migrations/008_add_maquina_modelo_sistemas_pago.sql`
 10. `migrations/009_operation_safety.sql`
-11. `seed-productos-reales.sql` para cargar el catalogo real.
-12. Opcional, separado y manual: `seed-demo-operacion.sql` para movimientos DEMO-V1.
+11. `migrations/010_reject_product_nan.sql`
+12. `seed-productos-reales.sql` para cargar el catalogo real.
+13. Opcional, separado y manual: `seed-demo-operacion.sql` para movimientos DEMO-V1.
 
 La URL de conexion de Neon se configura como `DATABASE_URL` en Render.
 
 Si la base ya existe, ejecuta solamente las migraciones que aun no hayas aplicado.
+Antes de la 010, revisa si hay importes invalidos en el catalogo:
+
+```sql
+SELECT id_producto, nombre, precio_venta, costo_compra
+FROM productos
+WHERE precio_venta = 'NaN'::numeric OR costo_compra = 'NaN'::numeric;
+```
+
+Si hay filas, corrige sus importes con los valores reales antes de aplicar la
+migracion. La 010 falla si encuentra un `NaN` y no modifica los datos existentes.
+
 La 007 es una reparacion idempotente de detalles faltantes y tambien funciona
 despues de la 001 en una instalacion nueva. La 006 no requiere reposiciones previas.
 La tabla correcta es `maquina_productos` (singular). Se corrigio el typo en las
@@ -263,6 +275,11 @@ Por ahora no incluye devoluciones ni limites de carga.
 
 - `GET /api/conteos`: historial solamente de bodega central.
 - `GET /api/conteos?id_camioneta=1`: historial de una camioneta existente (tambien inactiva).
+
+Los historiales de movimientos de bodega, movimientos de camioneta y conteos
+devuelven hasta 50 registros por solicitud en `data.items`, en orden descendente
+por ID. Para leer la pagina siguiente, envia `data.nextCursor` como `antes_de`
+en la misma ruta y conserva los filtros. `nextCursor: null` indica el final.
 - `POST /api/conteos`: registra un conteo y la diferencia `stock_fisico - stock_esperado`.
 
 ```json
@@ -309,6 +326,8 @@ El formulario de edicion no reenvia cantidades sin cambios; ante conflicto, cerr
 y volver a abrirlo despues de actualizar el inventario.
 
 `POST /api/reposiciones` requiere `id_repartidor` junto a los datos de reposicion.
+Cada detalle de una reposicion nueva requiere la `version` que el formulario leyo
+al revisar la maquina. Si la version cambio, devuelve 409 y revierte la operacion.
 El backend obtiene su camioneta asignada; no acepta una camioneta elegida por el cliente.
 Repartidor, camioneta y maquina deben estar activos.
 
@@ -346,6 +365,8 @@ informativos, sin tolerancias ni cambios de saldo.
 Ambas fechas son obligatorias, reales y con formato `YYYY-MM-DD`.
 Desde no puede ser posterior a hasta; ambos dias se incluyen en horario
 `America/Santiago`, incluso cuando cambia el horario de verano.
+El periodo admite hasta 30 dias calendario contando ambas fechas.
+Si supera el limite, la API devuelve `400` antes de consultar PostgreSQL.
 
 La respuesta contiene `periodo`, `indicadores`, `maquinas`, `stock`, `atencion`,
 `ultimas_visitas`, `evolucion`, `diferencias_maquinas` y `proveedores`.

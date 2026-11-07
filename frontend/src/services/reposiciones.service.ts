@@ -2,6 +2,7 @@ import { api } from './api';
 
 export type ReposicionDetallePayload = {
   id_maquina_producto: number;
+  version: number;
   stock_sistema: number;
   stock_encontrado: number;
   cantidad_vendida: number;

@@ -1,10 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { PageHeader } from '../../../components/PageHeader';
 import { StateMessage } from '../../../components/StateMessage';
 import { DataTable } from '../../../components/table/DataTable';
+import { HistoryLoadMore } from '../../../components/table/HistoryLoadMore';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { camionetasService, type CamionetaProducto, type CamionetaMovimientoDetalle } from '../../../services/camionetas.service';
 import { ConteoInventarioModal } from '../../../components/ConteoInventarioModal';
@@ -34,7 +35,14 @@ export const CamionetaInventarioPage = () => {
   const validId = Number.isInteger(id) && id > 0 && id <= 2147483647;
   const camioneta = useQuery({ queryKey: ['camioneta', id], queryFn: () => camionetasService.getById(id), enabled: validId });
   const inventario = useQuery({ queryKey: ['camioneta-inventario', id], queryFn: () => camionetasService.getInventario(id), enabled: validId });
-  const movimientos = useQuery({ queryKey: ['camioneta-movimientos', id], queryFn: () => camionetasService.getMovimientos(id), enabled: validId });
+  const movimientos = useInfiniteQuery({
+    queryKey: ['camioneta-movimientos', id],
+    queryFn: ({ pageParam }) => camionetasService.getMovimientos(id, pageParam),
+    initialPageParam: null as number | null,
+    getNextPageParam: (page) => page.nextCursor,
+    enabled: validId,
+  });
+  const movimientoRows = useMemo(() => movimientos.data?.pages.flatMap((page) => page.items) ?? [], [movimientos.data]);
 
   return (
     <section>
@@ -53,9 +61,14 @@ export const CamionetaInventarioPage = () => {
             <StateMessage title="No se pudo cargar el inventario" description={inventario.error.message} />
           ) : <DataTable columns={inventarioColumns} data={inventario.data ?? []} searchPlaceholder="Buscar producto en camioneta..." emptyMessage="No hay productos registrados." />}
           <h3 className="mb-4 mt-8 text-xl font-bold text-slate-950">Historial de movimientos</h3>
-          {movimientos.isLoading ? <StateMessage title="Cargando movimientos" description="Obteniendo el historial de la camioneta." /> : movimientos.isError ? (
+          {movimientos.isLoading ? <StateMessage title="Cargando movimientos" description="Obteniendo el historial de la camioneta." /> : movimientos.isError && !movimientos.data ? (
             <StateMessage title="No se pudieron cargar los movimientos" description={movimientos.error.message} />
-          ) : <DataTable columns={movimientoColumns} data={movimientos.data ?? []} searchPlaceholder="Buscar movimiento..." emptyMessage="No hay movimientos registrados." />}
+          ) : (
+            <>
+              <DataTable columns={movimientoColumns} data={movimientoRows} searchPlaceholder="Buscar en los movimientos cargados..." emptyMessage="No hay movimientos para mostrar." />
+              <HistoryLoadMore query={movimientos} />
+            </>
+          )}
           <ConteosInventario key={id} idCamioneta={id} />
           {isConteoOpen && camioneta.data ? <ConteoInventarioModal key={id} camioneta={camioneta.data} inventario={inventario.data} inventarioReady={camioneta.isSuccess && !camioneta.isFetching && inventario.isSuccess && !inventario.isFetching} onClose={() => setIsConteoOpen(false)} /> : null}
         </>

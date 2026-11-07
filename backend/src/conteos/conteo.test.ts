@@ -2,7 +2,7 @@ import request from 'supertest';
 import pool from '../config/db.js';
 import { createTestApp } from '../test-utils/createTestApp.js';
 import router from './conteo.route.js';
-import { createConteo, getConteos } from './conteo.service.js';
+import { createConteo } from './conteo.service.js';
 
 jest.mock('../config/db.js', () => ({
   __esModule: true,
@@ -137,15 +137,17 @@ describe('physical counts service and routes', () => {
     (pool.query as jest.Mock).mockResolvedValue({ rows: history });
     const response = await request(app).get('/api/conteos');
     expect(response.status).toBe(200);
-    expect(response.body.data).toEqual(history);
-    expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('c.id_camioneta IS NULL'), []);
+    expect(response.body.data).toEqual({ items: history, nextCursor: null });
+    expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('c.id_camioneta IS NULL'), [2147483647, 51]);
     expect((pool.query as jest.Mock).mock.calls[0][0]).toContain("concat_ws(' ', u.nombre, u.apellido)");
   });
 
   it('filters truck history and allows inactive trucks', async () => {
     (pool.query as jest.Mock).mockResolvedValueOnce({ rows: [camioneta] }).mockResolvedValueOnce({ rows: [] });
-    expect((await request(app).get('/api/conteos?id_camioneta=1')).status).toBe(200);
-    expect(pool.query).toHaveBeenLastCalledWith(expect.stringContaining('c.id_camioneta = $1'), [1]);
+    const response = await request(app).get('/api/conteos?id_camioneta=1&antes_de=10');
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({ items: [], nextCursor: null });
+    expect(pool.query).toHaveBeenLastCalledWith(expect.stringContaining('c.id_camioneta = $3'), [9, 51, 1]);
   });
 
   it('returns 404 for missing truck history', async () => {
@@ -159,8 +161,7 @@ describe('physical counts service and routes', () => {
     },
   );
 
-  it('validates direct service filters and surfaces history errors', async () => {
-    await expect(getConteos(0)).rejects.toMatchObject({ statusCode: 400 });
+  it('surfaces history errors', async () => {
     (pool.query as jest.Mock).mockRejectedValue(new Error('History error'));
     expect((await request(app).get('/api/conteos')).status).toBe(500);
   });

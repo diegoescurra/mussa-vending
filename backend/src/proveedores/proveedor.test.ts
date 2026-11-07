@@ -7,6 +7,8 @@ jest.mock('./proveedor.service.js');
 
 const app = createTestApp(router);
 const mockedService = jest.mocked(service);
+const proveedor = { id_proveedor: 1, nombre: 'Proveedor 1', estado: true, fecha_creacion: new Date('2026-01-01T00:00:00Z') };
+const proveedorJson = { ...proveedor, fecha_creacion: proveedor.fecha_creacion.toISOString() };
 
 describe('proveedores routes', () => {
   beforeEach(() => {
@@ -14,12 +16,12 @@ describe('proveedores routes', () => {
   });
 
   it('GET /api/proveedores returns proveedores', async () => {
-    mockedService.getAllProveedores.mockResolvedValue([{ id_proveedor: 1, nombre: 'Proveedor 1' }]);
+    mockedService.getAllProveedores.mockResolvedValue([proveedor]);
 
     const response = await request(app).get('/api/proveedores');
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ status: 'success', data: [{ id_proveedor: 1, nombre: 'Proveedor 1' }] });
+    expect(response.body).toEqual({ status: 'success', data: [proveedorJson] });
   });
 
   it('GET /api/proveedores/:id returns 404 when proveedor does not exist', async () => {
@@ -32,12 +34,12 @@ describe('proveedores routes', () => {
   });
 
   it('POST /api/proveedores creates a proveedor', async () => {
-    mockedService.createProveedor.mockResolvedValue({ id_proveedor: 1, nombre: 'Proveedor 1' });
+    mockedService.createProveedor.mockResolvedValue(proveedor);
 
     const response = await request(app).post('/api/proveedores').send({ nombre: 'Proveedor 1' });
 
     expect(response.status).toBe(201);
-    expect(response.body.data).toEqual({ id_proveedor: 1, nombre: 'Proveedor 1' });
+    expect(response.body.data).toEqual(proveedorJson);
     expect(mockedService.createProveedor).toHaveBeenCalledWith({ nombre: 'Proveedor 1' });
   });
 
@@ -50,17 +52,16 @@ describe('proveedores routes', () => {
 
   it('PUT /api/proveedores/:id updates a proveedor', async () => {
     const payload = { nombre: 'Proveedor 1', estado: true };
-    mockedService.updateProveedor.mockResolvedValue({ id_proveedor: 1, ...payload });
+    mockedService.updateProveedor.mockResolvedValue({ ...proveedor, ...payload });
 
     const response = await request(app).put('/api/proveedores/1').send(payload);
 
     expect(response.status).toBe(200);
-    expect(response.body.data).toEqual({ id_proveedor: 1, ...payload });
+    expect(response.body.data).toEqual({ ...proveedorJson, ...payload });
     expect(mockedService.updateProveedor).toHaveBeenCalledWith(payload, 1);
   });
 
   it('DELETE /api/proveedores/:id deletes a proveedor', async () => {
-    mockedService.getProveedorById.mockResolvedValue({ id_proveedor: 1 });
     mockedService.deleteProveedor.mockResolvedValue(undefined);
 
     const response = await request(app).delete('/api/proveedores/1');

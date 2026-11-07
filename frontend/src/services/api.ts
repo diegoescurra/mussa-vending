@@ -1,5 +1,10 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api";
 
+export type HistoryPage<T> = {
+  items: T[];
+  nextCursor: number | null;
+};
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
