@@ -4,6 +4,11 @@ import type { Producto } from './producto.type.js';
 
 const productColumns = 'id_producto, nombre, precio_venta, costo_compra, estado, fecha_creacion, id_proveedor';
 
+export const findOptions = async () => {
+    const { rows } = await pool.query<Pick<Producto, 'id_producto' | 'nombre'>>('SELECT id_producto, nombre FROM productos ORDER BY nombre');
+    return rows;
+};
+
 export const findAll = async () => {
     const { rows } = await pool.query<Producto>(`SELECT ${productColumns} FROM productos`);
     return rows;

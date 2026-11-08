@@ -12,6 +12,14 @@ services:
         sync: false
       - key: CORS_ORIGIN
         sync: false
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: TRUST_PROXY
+        value: "1"
+      - key: SESSION_SAME_SITE
+        value: none
 
   - type: web
     name: mussa-vending-web

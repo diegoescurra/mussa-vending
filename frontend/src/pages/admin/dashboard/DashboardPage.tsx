@@ -1,3 +1,10 @@
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/PageHeader';
+import { RefreshCw, CalendarDays } from 'lucide-react';
 import { useRef, useState, type FormEvent } from 'react';
 import { useDashboard } from '../../../hooks/useDashboard';
 import { CashEvolutionChart } from './CashEvolutionChart';
@@ -7,7 +14,10 @@ import { AttentionPanel, ProductsPanel, VisitsPanel } from './OperationalPanels'
 import { formatDate, panelClass } from './dashboardPresentation';
 
 const santiagoDate = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'America/Santiago', year: 'numeric', month: '2-digit', day: '2-digit',
+  timeZone: 'America/Santiago',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
 });
 
 function recentPeriod(days: number) {
@@ -26,17 +36,14 @@ const views = [
   { id: 'ventas', label: 'Ventas y margen' },
 ] as const;
 
-type DashboardView = typeof views[number]['id'];
-
-const buttonClass = 'rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50';
-const dateClass = 'w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-blue-600';
+type DashboardView = (typeof views)[number]['id'];
 
 export const DashboardPage = () => {
   const [applied, setApplied] = useState(() => recentPeriod(30));
   const [form, setForm] = useState(applied);
   const [formError, setFormError] = useState('');
   const [view, setView] = useState<DashboardView>('resumen');
-  const viewNav = useRef<HTMLElement>(null);
+  const viewNav = useRef<HTMLDivElement>(null);
   const dashboard = useDashboard(applied.desde, applied.hasta);
   const data = dashboard.data;
 
@@ -67,100 +74,151 @@ export const DashboardPage = () => {
   };
 
   return (
-    <section className="mx-auto grid max-w-7xl min-w-0 gap-6 pb-4">
-      <header className="grid items-end gap-5 xl:grid-cols-[1fr_auto]">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Operación</p>
-          <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">Resumen operativo</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Revisa la caja del período y las máquinas que necesitan atención.</p>
-        </div>
-        <form onSubmit={submitPeriod} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-          <fieldset disabled={dashboard.isFetching}>
-            <legend className="sr-only">Período de consulta en horario de Santiago</legend>
-            <div className="grid grid-cols-2 items-end gap-2 sm:grid-cols-[1fr_1fr_auto]">
-              <label className="grid gap-1 text-xs font-semibold text-slate-600">
-                Desde
-                <input type="date" required value={form.desde} onChange={(event) => setForm({ ...form, desde: event.target.value })} className={dateClass} />
-              </label>
-              <label className="grid gap-1 text-xs font-semibold text-slate-600">
-                Hasta
-                <input type="date" required value={form.hasta} onChange={(event) => setForm({ ...form, hasta: event.target.value })} className={dateClass} />
-              </label>
-              <button className={`${buttonClass} col-span-2 sm:col-span-1`} type="submit">Aplicar</button>
-            </div>
-            <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-              <span className="text-slate-500">Horario de Santiago</span>
-              {[7, 30].map((days) => (
-                <button key={days} type="button" className="rounded py-1 font-semibold text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2" onClick={() => choosePeriod(days)}>
-                  Últimos {days} días
-                </button>
-              ))}
-            </div>
-          </fieldset>
-          {formError ? <p role="alert" className="mt-2 text-sm text-red-700">{formError}</p> : null}
-        </form>
-      </header>
-
-      <div>
-        <nav ref={viewNav} tabIndex={-1} aria-label="Vistas del dashboard" className="grid grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-white p-1.5 focus-visible:outline-2 focus-visible:outline-blue-600 sm:flex">
-          {views.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              aria-pressed={view === item.id}
-              className={`rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-blue-600 sm:px-4 ${view === item.id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'}`}
-              onClick={() => setView(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
-          <p><span className="font-semibold text-slate-800">Período</span> · {formatDate(applied.desde)} – {formatDate(applied.hasta)}</p>
-          <button type="button" disabled={dashboard.isFetching} onClick={() => void dashboard.refetch()} className="rounded-md px-2 py-1 font-semibold text-blue-700 hover:bg-blue-50 focus-visible:outline-2 disabled:opacity-50">
+    <section className="min-w-0">
+      <PageHeader
+        title="Resumen operativo"
+        description="La caja, el inventario y las prioridades de tu operación."
+        actions={
+          <Button variant="outline" disabled={dashboard.isFetching} onClick={() => void dashboard.refetch()}>
+            <RefreshCw className={dashboard.isFetching ? 'animate-spin' : ''} />
             {dashboard.isFetching ? 'Actualizando…' : 'Actualizar datos'}
-          </button>
+          </Button>
+        }
+      />
+      <Card className="mb-6 gap-0 py-4 shadow-none">
+        <CardContent>
+          <form onSubmit={submitPeriod}>
+            <fieldset
+              disabled={dashboard.isFetching}
+              className="flex flex-wrap items-end justify-between gap-4"
+            >
+              <legend className="sr-only">Período de consulta en horario de Santiago</legend>
+              <div className="flex items-center gap-3 text-sm">
+                <span className="rounded-lg bg-blue-50 p-2 text-primary">
+                  <CalendarDays className="size-5" />
+                </span>
+                <div>
+                  <p className="font-medium">Período de consulta</p>
+                  <p className="text-xs text-muted-foreground">Hasta 30 días · Horario de Santiago</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Desde
+                  <Input
+                    className="w-36 bg-white"
+                    type="date"
+                    required
+                    value={form.desde}
+                    onChange={(event) => setForm({ ...form, desde: event.target.value })}
+                  />
+                </label>
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Hasta
+                  <Input
+                    className="w-36 bg-white"
+                    type="date"
+                    required
+                    value={form.hasta}
+                    onChange={(event) => setForm({ ...form, hasta: event.target.value })}
+                  />
+                </label>
+                <Button type="submit">Aplicar</Button>
+                {[7, 30].map((days) => (
+                  <Button
+                    key={days}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => choosePeriod(days)}
+                  >
+                    Últimos {days} días
+                  </Button>
+                ))}
+              </div>
+            </fieldset>
+            {formError ? (
+              <p role="alert" className="mt-3 text-sm text-red-600">
+                {formError}
+              </p>
+            ) : null}
+          </form>
+        </CardContent>
+      </Card>
+      <Tabs value={view} onValueChange={(value) => setView(value as DashboardView)} className="gap-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <TabsList
+            ref={viewNav}
+            aria-label="Vistas del dashboard"
+            className="grid w-full grid-cols-2 gap-1 bg-slate-100 p-1 group-data-[orientation=horizontal]/tabs:h-auto sm:w-fit sm:grid-cols-4"
+          >
+            {views.map((item) => (
+              <TabsTrigger key={item.id} value={item.id} className="h-9 px-3 py-2 data-[state=active]:bg-white">
+                {item.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <p className="text-xs text-muted-foreground">
+            {formatDate(applied.desde)} – {formatDate(applied.hasta)}
+          </p>
         </div>
-        <p role="status" className="sr-only">{dashboard.isFetching ? 'Cargando datos del período' : ''}</p>
-      </div>
-
-      {dashboard.isError ? (
-        <div role="alert" className={`${panelClass} border-red-200`}>
-          <h3 className="font-semibold text-red-800">No se pudo cargar el período</h3>
-          <p className="my-3 text-sm text-slate-600">{dashboard.error.message}</p>
-          <button className={buttonClass} disabled={dashboard.isFetching} onClick={() => void dashboard.refetch()}>Reintentar</button>
-        </div>
-      ) : null}
-      {data ? (
-        <div className="grid min-w-0 gap-6" aria-busy={dashboard.isFetching}>
-          {view === 'resumen' ? <DashboardOverview data={data} onOpen={openDetail} /> : null}
-          {view === 'caja' ? (
-            <>
+        <p role="status" className="sr-only">
+          {dashboard.isFetching ? 'Cargando datos del período' : ''}
+        </p>
+        {dashboard.isError ? (
+          <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5">
+            <h3 className="font-semibold text-red-800">No se pudo cargar el período</h3>
+            <p className="my-3 text-sm">{dashboard.error.message}</p>
+            <Button
+              variant="outline"
+              disabled={dashboard.isFetching}
+              onClick={() => void dashboard.refetch()}
+            >
+              Reintentar
+            </Button>
+          </div>
+        ) : null}
+        {data ? (
+          <>
+            <TabsContent value="resumen">
+              <DashboardOverview data={data} onOpen={openDetail} />
+            </TabsContent>
+            <TabsContent value="caja" className="space-y-6">
               <CashEvolutionChart rows={data.evolucion} />
               <CashDifferencesPanel rows={data.diferencias_maquinas} />
               <VisitsPanel rows={data.ultimas_visitas} />
-            </>
-          ) : null}
-          {view === 'stock' ? (
-            <>
-              <dl aria-label="Estado actual de las máquinas" className={`${panelClass} grid grid-cols-1 gap-4 sm:grid-cols-3`}>
-                <div><dt className="text-sm text-slate-600">Máquinas activas</dt><dd className="mt-1 text-2xl font-bold tabular-nums">{data.maquinas.activas}</dd></div>
-                <div><dt className="text-sm text-slate-600">En mantención</dt><dd className="mt-1 text-2xl font-bold tabular-nums">{data.maquinas.mantencion}</dd></div>
-                <div><dt className="text-sm text-slate-600">Máquinas inactivas</dt><dd className="mt-1 text-2xl font-bold tabular-nums">{data.maquinas.inactivas}</dd></div>
+            </TabsContent>
+            <TabsContent value="stock" className="space-y-6">
+              <dl
+                aria-label="Estado actual de las máquinas"
+                className={panelClass + ' grid gap-4 sm:grid-cols-3'}
+              >
+                {[
+                  ['Máquinas activas', data.maquinas.activas],
+                  ['En mantención', data.maquinas.mantencion],
+                  ['Máquinas inactivas', data.maquinas.inactivas],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="text-sm text-muted-foreground">{label}</dt>
+                    <dd className="mt-2 text-3xl font-semibold tabular-nums">{value}</dd>
+                  </div>
+                ))}
               </dl>
               <AttentionPanel data={data} />
-            </>
-          ) : null}
-          {view === 'ventas' ? (
-            <>
+            </TabsContent>
+            <TabsContent value="ventas" className="space-y-6">
               <ProductsPanel rows={data.productos} />
               <ProvidersPanel providers={data.proveedores} />
-            </>
-          ) : null}
-        </div>
-      ) : dashboard.isPending ? (
-        <div className={`${panelClass} min-h-32 grid place-items-center text-sm text-slate-600`}>Cargando el período seleccionado…</div>
-      ) : null}
+            </TabsContent>
+          </>
+        ) : dashboard.isPending ? (
+          <div className="grid gap-4 sm:grid-cols-3" aria-label="Cargando resumen">
+            {[1, 2, 3].map((n) => (
+              <Skeleton key={n} className="h-40 rounded-xl" />
+            ))}
+          </div>
+        ) : null}
+      </Tabs>
     </section>
   );
 };

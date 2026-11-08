@@ -5,7 +5,7 @@ import * as service from './reposicion.service.js';
 
 jest.mock('./reposicion.service.js');
 
-const app = createTestApp(router);
+const app = createTestApp(router, { id_usuario: 2, rol: 'REPONEDOR' });
 const mockedService = jest.mocked(service);
 
 const payload = {
@@ -34,10 +34,10 @@ describe('reposiciones routes', () => {
     jest.clearAllMocks();
   });
 
-  it('POST /api/reposiciones creates a reposicion', async () => {
+  it('POST /api/reposiciones uses the authenticated driver instead of the submitted identity', async () => {
     mockedService.createReposicion.mockResolvedValue({ id_reposicion: 1, ...payload });
 
-    const response = await request(app).post('/api/reposiciones').send(payload);
+    const response = await request(app).post('/api/reposiciones').send({ ...payload, id_repartidor: 999 });
 
     expect(response.status).toBe(201);
     expect(response.body.data).toEqual({ id_reposicion: 1, ...payload });

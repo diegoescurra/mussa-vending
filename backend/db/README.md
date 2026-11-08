@@ -1,182 +1,85 @@
 # Base de datos
 
-En una base vacia, ejecuta estos archivos en orden desde el editor SQL de Neon:
+## Archivos que se mantienen
 
-1. `migrations/000_create_schema.sql`
-2. `migrations/001_create_reposiciones.sql`
-3. `migrations/002_create_bodega.sql`
-4. `migrations/003_create_camionetas.sql`
-5. `migrations/004_create_camioneta_inventario.sql`
-6. `migrations/005_create_conteos.sql`
-7. `migrations/006_reposicion_camioneta.sql`
-8. `migrations/007_create_missing_reposicion_detalles.sql`
-9. `migrations/008_add_maquina_modelo_sistemas_pago.sql`
-10. `migrations/009_operation_safety.sql`
-11. `migrations/010_reject_product_nan.sql`
-12. `seed-productos-reales.sql` para cargar el catalogo real.
-13. Opcional, separado y manual: `seed-demo-operacion.sql` para movimientos DEMO-V1.
+- `schema.sql`: esquema completo, compartido por local y produccion, consolidado de las migraciones 000..011.
+- `seed-productos-reales.sql`: unico seed; carga inicial opcional del catalogo real de proveedores y productos.
+- `migrations/`: historial de cambios y referencia para las actualizaciones futuras. Las pruebas de integracion tambien usan estas migraciones.
 
-La URL de conexion de Neon se configura como `DATABASE_URL` en Render.
+Los datos de los tests se preparan en sus propias fixtures. No se necesitan seeds
+de demostracion para ejecutar la aplicacion ni las pruebas de integracion.
+Ningun SQL se ejecuta automaticamente al iniciar el backend.
 
-Si la base ya existe, ejecuta solamente las migraciones que aun no hayas aplicado.
-Antes de la 010, revisa si hay importes invalidos en el catalogo:
+## Produccion: completar el esquema existente
+
+En Neon, abre el editor SQL de la base y rama que usa `DATABASE_URL` en Render.
+Puedes confirmar la conexion y la presencia de las tablas con:
+
+```sql
+SELECT current_database(), current_schema();
+SELECT to_regclass('public.proveedores') AS proveedores,
+       to_regclass('public.productos') AS productos,
+       to_regclass('public.reposiciones') AS reposiciones;
+```
+
+Ejecuta **todo `schema.sql`**. Sirve si solo existen las tablas de proveedores y
+productos del esquema base, si existen mas tablas vacias o si ya hay actividad.
+Conserva IDs, nombres, precios, costos, estados, relaciones y filas existentes.
+Crea las tablas faltantes y agrega las columnas, restricciones, indices y el
+trigger de version de las migraciones actuales. No carga stock ni historial.
+
+Si el catalogo ya esta cargado, **no necesitas ejecutar el seed**. Si no hay
+reposiciones, el dashboard mostrara cero visitas y ventas; los saldos sin
+movimientos se muestran en cero. Usuarios, camionetas y maquinas se registran
+desde la aplicacion con los datos reales.
+
+El archivo es transaccional y puede repetirse. Si falla, no se confirma ningun
+cambio de esa ejecucion; ejecuta `ROLLBACK;` si el editor deja la transaccion
+abierta, corrige la causa y vuelve a ejecutar el archivo completo.
+
+El consolidado admite el esquema definido por las migraciones del proyecto;
+no corrige modificaciones manuales arbitrarias. Si solo existe la antigua tabla
+`maquinas_productos` (plural), aborta para que se revise su estructura. La tabla
+que usa la aplicacion es `maquina_productos` (singular).
+
+## Local
+
+Ejecuta el mismo `schema.sql` en el editor conectado a tu PostgreSQL local.
+Con `psql`, desde `backend`, usando los valores de `docker-compose.yml`:
+
+```sh
+psql -h localhost -p 5434 -U inventario_user -d inventario_maquinas -v ON_ERROR_STOP=1 -f db/schema.sql
+```
+
+Ajusta la conexion si tu instalacion usa otros valores.
+
+## Catalogo inicial opcional
+
+Para una base nueva, ejecuta primero `schema.sql` y despues, por separado,
+`seed-productos-reales.sql`. El seed crea proveedores y vincula productos por
+nombre. Conserva los costos y precios informados, incluidos los costos cero.
+Los dos TUAREG se distinguen como `TUAREG (CASO)` y `TUAREG (SERFEL)` porque
+los nombres de producto son unicos.
+
+Puede repetirse sin duplicados: los proveedores y productos con el mismo nombre
+se conservan sin modificar ni reactivar. No es un script de sincronizacion de
+catalogo, no cambia precios existentes ni carga existencias o responsables.
+
+## Actualizaciones futuras
+
+Mantener `schema.sql` sincronizado al agregar migraciones. Para una base existente
+se pueden aplicar solamente las migraciones pendientes, en orden numerico,
+en lugar del consolidado. No reaplicar todas las migraciones individuales sobre
+una base ya actualizada: algunas no son repetibles. La 007 repara la tabla de
+detalles faltante y la 010 rechaza importes `NaN`.
+
+Si la restriccion de importes falla, identifica y corrige los valores reales:
 
 ```sql
 SELECT id_producto, nombre, precio_venta, costo_compra
 FROM productos
 WHERE precio_venta = 'NaN'::numeric OR costo_compra = 'NaN'::numeric;
 ```
-
-Si hay filas, corrige sus importes con los valores reales antes de aplicar la
-migracion. La 010 falla si encuentra un `NaN` y no modifica los datos existentes.
-
-La 007 es una reparacion idempotente de detalles faltantes y tambien funciona
-despues de la 001 en una instalacion nueva. La 006 no requiere reposiciones previas.
-La tabla correcta es `maquina_productos` (singular). Se corrigio el typo en las
-fuentes 000 y `seed.sql`; esto NO renombra ni modifica tablas ya desplegadas.
-Si una base solo tiene `maquinas_productos`, revisar su esquema antes de continuar;
-el seed operativo aborta, no intenta reparar una base existente.
-
-`seed.sql` es el antiguo ejemplo minimo con productos ficticios, no es un paso
-necesario ni el seed operativo. DEMO-V1 puede coexistir con ese ejemplo sin tocarlo.
-Ningun seed se ejecuta automaticamente al iniciar el backend o aplicar migraciones.
-
-## Catalogo real
-
-Para cargar los proveedores y productos reales en Neon, ejecuta
-`seed-productos-reales.sql` desde el editor SQL, despues de crear las tablas
-`proveedores` y `productos`. No requiere ejecutar el seed de demostracion.
-
-El script crea primero los proveedores y luego vincula cada producto usando
-su nombre de proveedor. Usa `proveedores` (plural), como el esquema de Neon.
-Conserva los costos y precios informados, incluidos los costos cero.
-Los dos TUAREG se identifican como `TUAREG (CASO)` y `TUAREG (SERFEL)`
-porque los nombres de productos son unicos.
-
-La carga es transaccional y puede repetirse sin duplicados. Si ya existe un
-proveedor o producto con el mismo nombre, no se modifica ni se reactiva.
-No elimina productos de demostracion ni asigna productos a maquinas, bodega
-o camionetas. Tampoco carga existencias.
-
-## Demo operativo real (DEMO-V1)
-
-Desde el editor SQL de Neon, despues de las migraciones 000..008 y del catalogo
-real, ejecutar **por separado** `seed-demo-operacion.sql` completo. Es una carga
-opcional para una base de demostracion, no para agregar historia a productos que
-ya se usan en produccion. No usa la URL configurada ni ejecuta escrituras por si
-solo. No borra datos ni crea tablas auxiliares persistentes.
-
-Ambos seeds reales tienen transaccion y el mismo advisory lock transaccional.
-El operativo comprueba columnas de 006, detalles de 007 y la tabla singular,
-y bloquea las tablas implicadas contra escrituras concurrentes durante la carga.
-Conviene ejecutarlo fuera de actividad: esos bloqueos pueden esperar o hacer
-esperar escrituras de la aplicacion. Cualquier error revierte la carga entera.
-
-### Condiciones antes de la primera carga
-
-- Deben existir `CHOCMAN`, `TUAREG (CASO)`, `PAPAS`, `COCA COLA LATA`, `CACHANTUN SIN GAS` y `WILD PROTEIN`, activos y con proveedor activo.
-- Los seis deben tener stock cero o saldo ausente en central, **todas** las camionetas y **todas** las maquinas existentes. Las asignaciones vacias sin uso previo son admisibles y se conservan.
-- No deben tener movimientos centrales/de camioneta, conteos, detalles ni visitas de maquinas a las que esten asignados, aunque el saldo haya vuelto a cero. Una visita sin detalles tambien cuenta como uso previo.
-- Si se incumple alguna condicion, aborta con mensaje claro. No sobrescribe saldos ni agrega una compra ficticia a historia previa. No limpiar ni resetear la base para forzarlo; usar una rama/base demo vacia o revisar manualmente.
-- No deben existir identificadores reservados `DEMO-V1*`, emails `demo-v1-*` ni observaciones `DEMO-V1*`. Una colision o carga parcial aborta; no se adopta ninguna entidad mediante `ON CONFLICT`.
-- El catalogo existente conserva precio, costo, proveedor y estado. La suma de precios de los seis debe ser al menos 125 CLP para soportar la diferencia de caja -500 sin dinero negativo.
-
-Los usuarios tienen emails `demo-v1-admin@example.invalid`,
-`demo-v1-a@example.invalid` y `demo-v1-b@example.invalid`, y hashes deliberadamente
-no utilizables para login (`!DEMO-V1-NO-LOGIN`). Los responsables son datos demo,
-no credenciales ni verificacion de identidad. Camionetas: `DEMO-V1-A/B`;
-maquinas: `DEMO-V1-M1` a `DEMO-V1-M5`. Las observaciones identifican compras,
-cargas, visitas, reposiciones y conteos como sinteticos.
-
-### Datos y cronologia
-
-| Entidad / historial DEMO-V1 | Cantidad |
-| --- | ---: |
-| Productos reales utilizados (no productos nuevos) | 6 |
-| Usuarios: 1 ADMIN y 2 REPONEDOR | 3 |
-| Camionetas asignadas a los dos reponedores | 2 |
-| Maquinas: 3 ACTIVA, 1 MANTENCION, 1 INACTIVA | 5 |
-| Slots activos: 3 maquinas x 6 productos, capacidad 18 | 18 |
-| Visitas: 4 rondas x 3 maquinas | 12 |
-| Detalles: 6 por visita, incluida la ronda sin reposicion | 72 |
-| Movimientos central: 6 entradas y 18 salidas | 24 |
-| Movimientos camioneta: 18 cargas y 54 salidas agregadas | 72 |
-| Conteos: 6 central y 6 por camioneta | 18 |
-
-Las fechas se calculan una sola vez en la primera carga desde `current_date` en
-`America/Santiago`, con horarios locales y orden cronologico de movimientos:
-
-1. Dia -13: compra de 200 unidades de cada producto (1.200 recibidas).
-2. Dia -12: carga de 60 por producto a cada camioneta, con salida central enlazada.
-3. Dia -9: primera visita a las 3 maquinas; sistema/encontrado 0, repuesto 12, final 12.
-4. Dia -6: encontrado 8, venta estimada 4, repuesto 6, final 14.
-5. Dia -3: recarga de 20 por producto a A; luego encontrado 9, venta 5, repuesto 5 y retiro 1, final 13.
-6. Dia -1: encontrado 0, 2 u 8 segun maquina/producto, repuesto 0; despues conteos informativos de cierre.
-
-A atiende M1/M2; B atiende M3. Cada maquina termina con dos productos agotados,
-dos bajos (2/18) y dos sanos (8/18). M4/M5 no tienen slots ni visitas.
-Los movimientos de camioneta se agregan por producto/visita y solo se generan
-si la cantidad repuesta es positiva, con sus FK a visita/maquina. Los retiros
-no vuelven a stock utilizable ni cuentan como ventas.
-
-Saldo final **por producto**: central 60, A 34, B 37, maquinas 10;
-ventas estimadas 56 unidades y retiros 3. Conservacion:
-`200 = 60 + 34 + 37 + 10 + 56 + 3`. Las cadenas de saldos parten de cero y no
-son negativas. Se usan los precios actuales del catalogo en los slots y se
-capturan en cada detalle, no se inventan precios historicos de produccion.
-
-Las primeras visitas tienen venta/caja/diferencia cero; las siguientes tienen
-diferencia de caja 0 (M1), +300 (M2) y -500 (M3), sin dinero negativo. Las
-cabeceras suman los importes de detalles una sola vez; diferencia total -600.
-Los conteos capturan el esperado final y fisicos con diferencias 0/+1/-1,
-generadas por la BD: **no ajustan** existencias ni generan movimientos. Central
-lo cuenta ADMIN; A su reponedor asignado; B ADMIN.
-
-Para ver las cuatro rondas en el dashboard, filtrar desde el dia -13 hasta hoy
-en Santiago. Al inicio de mes hay datos del mes anterior: el filtro por mes
-actual puede ocultar compras/visitas y no significa que falten datos. Las fechas
-no se mueven al repetir. Los graficos por proveedor y costo usan el catalogo
-real. Opcionalmente corregir costos conocidos mediante el flujo normal de
-catalogo; los costos cero existentes se conservan y deben revisarse si no
-corresponden al costo real. El seed no los interpreta como costos desconocidos.
-
-### Repeticion
-
-El ultimo conteo lleva `DEMO-V1 COMPLETE`, ligado a WILD PROTEIN en B y ADMIN.
-Si existe ese marcador y estan completas las entidades/filas originales, devuelve
-un NOTICE y no hace inserts, no reinicia stock ni historia y conserva el uso
-manual posterior, fechas y precios. El marcador no sustituye las comprobaciones
-de completitud. Si faltan filas originales o el marcador colisiona, aborta sin
-reparacion automatica. Reservar `DEMO-V1*` para estas filas, no reutilizarlo en
-observaciones nuevas de la aplicacion.
-
-### Verificacion local aislada
-
-`verify-demo-operacion.mjs` requiere Node y un contenedor PostgreSQL local ya
-existente. No lee `.env` ni `DATABASE_URL`, no se conecta a Neon. Ejemplo:
-
-```powershell
-node backend/db/verify-demo-operacion.mjs postgres_inventory inventario_user inventario_maquinas
-```
-
-El script crea esquemas aleatorios dentro de una transaccion, fija `search_path`
-solo a esos esquemas (sin `public`) y ejecuta las sentencias SQL reales de las
-migraciones/seeds. Solo quita los `BEGIN/COMMIT` externos de los archivos para
-poder **revertir absolutamente toda la verificacion con ROLLBACK**. Ante error,
-el cierre de la conexion tambien revierte. No hace DROP, RESET ni cambios en
-el `public` existente; usa tablas temporales para comparar resultados.
-
-Comprueba coexistencia con el seed antiguo, catalogo existente inmutable,
-cantidades, ecuaciones de stock y dinero, cadenas cronologicas no negativas,
-FK de cargas/salidas, conservacion por producto, estados de slots, responsables
-y diferencias de conteos, fechas Santiago, repeticion sin cambios y uso manual
-posterior. Tambien prueba guardas de stock/historia/colisiones/carga parcial,
-esquema plural incorrecto, ausencia de 006 y reparacion de detalles mediante
-007 sin exigir datos previos. Aplica 008 sobre maquinas e inventario legacy poblados,
-comprueba preservacion de filas/IDs y defaults, acepta las combinaciones validas
-de pago y rechaza valores desconocidos, null, duplicados y multiples dimensiones
-sin conservar cambios de prueba. No es un CLI de migraciones ni ejecuta seeds en
-la base configurada por el backend.
 
 ## Maquinas
 
@@ -200,10 +103,9 @@ la base configurada por el backend.
 `MONEDA`, `BILLETE` o `TARJETA`. Campos omitidos o invalidos devuelven 400.
 PUT sigue siendo una actualizacion completa, no parcial.
 
-En una base existente, ejecutar manualmente el archivo 008 completo en el editor
-SQL de Neon, despues de las migraciones anteriores y antes de desplegar este
-backend. No se ejecuta automaticamente. Es transaccional y debe aplicarse una sola
-vez. Conserva las maquinas existentes con `modelo = ''` y `sistemas_pago = []`
+`schema.sql` incluye este cambio. Si actualizas mediante migraciones individuales,
+ejecuta la 008 completa despues de las anteriores y una sola vez. No se ejecuta
+automaticamente. Conserva las maquinas existentes con `modelo = ''` y `sistemas_pago = []`
 hasta editarlas con datos reales; no inventa configuracion ni modifica inventario
 o historia. La BD permite esos defaults legacy, pero rechaza arrays con valores
 fuera del enum, duplicados, elementos null o multiples dimensiones. La API exige
@@ -264,7 +166,7 @@ Las camionetas con inventario o entregas registradas no se eliminan; se desactiv
 
 El bodeguero se selecciona manualmente y debe ser un ADMIN activo; el repartidor
 se obtiene de la camioneta y debe ser un REPONEDOR activo. La camioneta y producto
-tambien deben estar activos. No hay login, por lo que estos datos no verifican identidad.
+tambien deben estar activos. La identidad del bodeguero se toma de la sesión autenticada.
 
 La entrega descuenta de central, suma a camioneta y registra ambos movimientos en
 una sola transaccion. No permite saldos negativos y revierte todo si algo falla.
@@ -295,7 +197,7 @@ Incluye `id_camioneta` para contar una camioneta; omitirlo cuenta central.
 El responsable de central debe ser ADMIN activo. En camioneta puede ser un ADMIN
 activo o el REPONEDOR activo asignado. Productos y camionetas inactivos se admiten
 para auditoria. Identificadores son enteros positivos y el stock fisico es entero
-entre 0 y 2147483647. El responsable se selecciona manualmente; no hay login.
+entre 0 y 2147483647. El responsable se toma de la sesión autenticada.
 
 La respuesta incluye `id_conteo`, ubicacion, producto, responsable, `stock_esperado`,
 `stock_fisico`, `diferencia`, `observacion` y `fecha_creacion`. El historial agrega
@@ -307,9 +209,10 @@ productos, responsables o camionetas con historia; no hay borrado en cascada.
 
 ## Reposicion desde camioneta
 
-Antes de desplegar esta version, aplicar una sola vez la migracion 009 completa.
-Agrega el registro de operaciones y una version al inventario; conserva los saldos
-y el historial existentes. No se ejecuta automaticamente al iniciar el backend.
+`schema.sql` incluye el registro de operaciones y la version del inventario.
+Si actualizas mediante migraciones individuales, aplica la 009 completa una sola
+vez despues de las anteriores. Conserva los saldos y el historial existentes.
+No se ejecuta automaticamente al iniciar el backend.
 Actualizar backend y frontend juntos: los clientes anteriores deben recargarse.
 
 Cada POST requiere `id_operacion` (UUID generado por el cliente). Un reintento debe
@@ -433,3 +336,15 @@ productos, inventario de maquinas y dashboard para actualizar datos relacionados
 El selector de productos no ofrece proveedores inactivos para nuevas
 asignaciones; al editar conserva visible el proveedor actual. Esa restriccion
 del selector no modifica todavia la validacion del endpoint de productos.
+
+## Autenticación (011)
+
+La migración `011_auth_sessions.sql` añade sesiones en PostgreSQL, la versión de acceso de los usuarios y la unicidad de correo normalizado. Está incluida en `schema.sql`. No asigna contraseñas a usuarios existentes. Ver [configuración y primer administrador](../AUTH.md).
+
+## Rol de bodeguero (012)
+
+Aplicar `012_bodeguero_role.sql` antes de crear usuarios BODEGUERO. También está incluida en `schema.sql`; conserva usuarios, contraseñas e historial. El administrador asigna el nuevo rol desde Usuarios. No convierte cuentas existentes automáticamente.
+
+Si `usuarios.rol` aún usa un enum antiguo, la migración lo convierte a texto con la restricción de roles del esquema actual, conservando sus valores.
+
+El bodeguero ingresa a `/admin/bodega` y comparte el panel existente. Puede usar Bodega, Inventario, Camionetas y Máquinas, incluidos sus movimientos, entregas y conteos. Productos, Proveedores, Usuarios y el dashboard quedan restringidos al administrador. Las consultas de opciones para los selectores solo devuelven identificadores y nombres. Los permisos se verifican tanto en las rutas del frontend como en el backend.

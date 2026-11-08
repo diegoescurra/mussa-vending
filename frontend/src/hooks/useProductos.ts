@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { productosService } from "../services"
+import { productosService } from "../services/productos.service"
 
 
 export const useProductos = () => {
@@ -8,3 +8,8 @@ export const useProductos = () => {
         queryFn: productosService.getAll,
     })
 }
+
+export const useProductoOpciones = () => useQuery({
+    queryKey: ['productos', 'opciones'],
+    queryFn: productosService.getOptions,
+});

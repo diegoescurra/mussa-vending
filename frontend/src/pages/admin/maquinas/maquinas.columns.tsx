@@ -20,19 +20,29 @@ export const createMaquinaColumns = ({ onEdit, onDelete }: MaquinaColumnsParams)
   {
     id: 'sistemas_pago',
     header: 'Sistemas de pago',
-    accessorFn: (maquina) => sistemasPagoOptions.filter(({ value }) => maquina.sistemas_pago.includes(value)).map(({ label }) => label).join(', '),
+    accessorFn: (maquina) =>
+      sistemasPagoOptions
+        .filter(({ value }) => maquina.sistemas_pago.includes(value))
+        .map(({ label }) => label)
+        .join(', '),
     cell: ({ getValue }) => getValue<string>() || 'Sin configurar',
   },
   { accessorKey: 'ubicacion', header: 'Ubicación' },
   {
     accessorKey: 'estado',
     header: 'Estado',
-    cell: ({ row }) => <span className={`rounded-full px-3 py-1 text-xs font-semibold ${stateClasses[row.original.estado]}`}>{row.original.estado}</span>,
+    cell: ({ row }) => (
+      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${stateClasses[row.original.estado]}`}>
+        {row.original.estado}
+      </span>
+    ),
   },
   { accessorKey: 'descripcion', header: 'Descripción' },
   {
     id: 'acciones',
     header: 'Acciones',
-    cell: ({ row }) => <RowActions onEdit={() => onEdit(row.original)} onDelete={() => onDelete(row.original)} />,
+    cell: ({ row }) => (
+      <RowActions onEdit={() => onEdit(row.original)} onDelete={() => onDelete(row.original)} />
+    ),
   },
 ];

@@ -30,8 +30,8 @@ export const createCargaCamioneta = async (id: number, carga: CreateCargaDTO) =>
     const usuarios = await repository.lockUsers(client, [carga.id_bodeguero, camioneta.id_repartidor]);
     const bodeguero = usuarios.find((usuario) => usuario.id_usuario === carga.id_bodeguero);
     const repartidor = usuarios.find((usuario) => usuario.id_usuario === camioneta.id_repartidor);
-    if (!bodeguero?.estado || bodeguero.rol !== 'ADMIN') {
-      throw new AppError('El bodeguero debe ser un usuario ADMIN activo', 400);
+    if (!bodeguero?.estado || !['ADMIN', 'BODEGUERO'].includes(bodeguero.rol)) {
+      throw new AppError('La entrega requiere un ADMIN o BODEGUERO activo', 400);
     }
     if (!repartidor?.estado || repartidor.rol !== 'REPONEDOR') {
       throw new AppError('El repartidor asignado debe estar activo y tener rol REPONEDOR', 400);

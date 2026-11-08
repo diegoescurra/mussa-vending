@@ -9,7 +9,7 @@ jest.mock('../config/db.js', () => ({
   default: { query: jest.fn(), connect: jest.fn() },
 }));
 
-const app = createTestApp(router);
+const app = createTestApp(router, { id_usuario: 3 });
 const query = jest.fn();
 const release = jest.fn();
 const payload = { id_responsable: 3, id_producto: 5, stock_fisico: 0 };
@@ -82,7 +82,7 @@ describe('physical counts service and routes', () => {
   );
 
   it.each([
-    {}, { ...payload, id_responsable: 0 }, { ...payload, id_responsable: 2147483648 },
+    {},
     { ...payload, id_producto: '5' }, { ...payload, id_producto: -1 }, { ...payload, id_producto: 1.5 },
     { ...payload, id_producto: 2147483648 }, { ...payload, id_camioneta: null },
     { ...payload, id_camioneta: 0 }, { ...payload, id_camioneta: '1' }, { ...payload, id_camioneta: 1.5 },

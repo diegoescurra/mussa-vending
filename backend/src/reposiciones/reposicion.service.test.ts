@@ -8,7 +8,7 @@ jest.mock('../config/db.js', () => ({
   default: { connect: jest.fn() },
 }));
 
-const app = createTestApp(router);
+const app = createTestApp(router, { id_usuario: 2, rol: 'REPONEDOR' });
 const query = jest.fn();
 const release = jest.fn();
 const detalle = {
@@ -187,9 +187,6 @@ describe('reposicion from assigned truck', () => {
   });
 
   it.each([
-    { ...payload, id_repartidor: undefined },
-    { ...payload, id_repartidor: 0 },
-    { ...payload, id_repartidor: '2' },
     { ...payload, dinero_retirado: -1 },
     { ...payload, observacion: 3 },
     { ...payload, detalles: [] },

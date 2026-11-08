@@ -1,3 +1,6 @@
+-- Catalogo inicial opcional: ejecutar despues de schema.sql, solo si hace falta.
+-- Los proveedores y productos existentes se conservan sin cambios.
+-- No carga usuarios, maquinas, existencias ni movimientos.
 BEGIN;
 SELECT pg_advisory_xact_lock(734821, 1);
 

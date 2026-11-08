@@ -35,5 +35,10 @@ export const useProductosCrud = (onDone: () => void) => {
     isDeleting: deleteMutation.isPending,
     resetDelete: deleteMutation.reset,
     isSaving: createMutation.isPending || updateMutation.isPending,
+    saveError: createMutation.error ?? updateMutation.error,
+    resetSave: () => {
+      createMutation.reset();
+      updateMutation.reset();
+    },
   };
 };

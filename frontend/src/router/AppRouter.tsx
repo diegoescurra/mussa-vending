@@ -1,6 +1,10 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { RequireSession } from '@/components/auth/RequireSession';
+import { LoginPage } from '@/pages/auth/LoginPage';
 import { AppLayout } from '../components/layout/AppLayout';
-import { DashboardPage } from '../pages/admin/dashboard/DashboardPage';
+import { StateMessage } from '../components/StateMessage';
 import { BodegaPage } from '../pages/admin/bodega/BodegaPage';
 import { CamionetasPage } from '../pages/admin/camionetas/CamionetasPage';
 import { CamionetaInventarioPage } from '../pages/admin/camionetas/CamionetaInventarioPage';
@@ -11,77 +15,57 @@ import { ProveedoresPage } from '../pages/admin/proveedores/ProveedoresPage';
 import { UsuariosPage } from '../pages/admin/usuarios/UsuariosPage';
 import { ReposicionPage } from '../pages/reposicion/ReposicionPage';
 
+// Los gráficos se descargan al abrir el dashboard, sin cargar el resto del panel.
+const DashboardPage = lazy(() =>
+  import('../pages/admin/dashboard/DashboardPage').then((module) => ({ default: module.DashboardPage })),
+);
+
 export const AppRouter = () => {
+  const client = useQueryClient();
+  const navigate = useNavigate();
+  useEffect(() => {
+    const expired = () => {
+      void client.cancelQueries().then(() => {
+        client.clear();
+        client.setQueryData(['auth'], { user: null, csrfToken: '' });
+        navigate('/login', { replace: true });
+      });
+    };
+    window.addEventListener('auth:expired', expired);
+    return () => window.removeEventListener('auth:expired', expired);
+  }, [client, navigate]);
   return (
     <Routes>
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-      <Route
-        path="/admin/dashboard"
-        element={(
-          <AppLayout>
-            <DashboardPage />
-          </AppLayout>
-        )}
-      />
-      <Route path="/reposicion" element={<ReposicionPage />} />
-      <Route path="/admin/proveedores" element={<AppLayout><ProveedoresPage /></AppLayout>} />
-      <Route
-        path="/admin/camionetas"
-        element={(
-          <AppLayout>
-            <CamionetasPage />
-          </AppLayout>
-        )}
-      />
-      <Route
-        path="/admin/camionetas/:id/inventario"
-        element={(
-          <AppLayout>
-            <CamionetaInventarioPage />
-          </AppLayout>
-        )}
-      />
-      <Route
-        path="/admin/bodega"
-        element={(
-          <AppLayout>
-            <BodegaPage />
-          </AppLayout>
-        )}
-      />
-      <Route
-        path="/admin/productos"
-        element={(
-          <AppLayout>
-            <ProductosPage />
-          </AppLayout>
-        )}
-      />
-      <Route
-        path="/admin/maquinas"
-        element={(
-          <AppLayout>
-            <MaquinasPage />
-          </AppLayout>
-        )}
-      />
-      <Route
-        path="/admin/inventario"
-        element={(
-          <AppLayout>
-            <InventarioPage />
-          </AppLayout>
-        )}
-      />
-      <Route
-        path="/admin/usuarios"
-        element={(
-          <AppLayout>
-            <UsuariosPage />
-          </AppLayout>
-        )}
-      />
+      <Route element={<RequireSession role={['ADMIN', 'BODEGUERO']} />}>
+        <Route path="/admin" element={<AppLayout />}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route element={<RequireSession role="ADMIN" />}>
+            <Route
+              path="dashboard"
+              element={
+                <Suspense
+                  fallback={<StateMessage title="Cargando resumen" description="Preparando el dashboard." />}
+                >
+                  <DashboardPage />
+                </Suspense>
+              }
+            />
+            <Route path="proveedores" element={<ProveedoresPage />} />
+            <Route path="productos" element={<ProductosPage />} />
+            <Route path="usuarios" element={<UsuariosPage />} />
+          </Route>
+          <Route path="camionetas" element={<CamionetasPage />} />
+          <Route path="camionetas/:id/inventario" element={<CamionetaInventarioPage />} />
+          <Route path="bodega" element={<BodegaPage />} />
+          <Route path="maquinas" element={<MaquinasPage />} />
+          <Route path="inventario" element={<InventarioPage />} />
+        </Route>
+      </Route>
+      <Route element={<RequireSession role="REPONEDOR" />}>
+        <Route path="/reposicion" element={<ReposicionPage />} />
+      </Route>
       <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
     </Routes>
   );

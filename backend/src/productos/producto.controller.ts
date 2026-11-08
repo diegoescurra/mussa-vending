@@ -5,10 +5,15 @@ import {
   createProducto,
   deleteProducto,
   getAllProductos,
+  getProductoOptions,
   getProductoById,
   updateProducto,
 } from "./producto.service.js";
 import { validateProductoBody } from "./producto.validation.js";
+
+export const getProductoOptionsController: RequestHandler = async (_req, res) => {
+    res.json({ status: 'success', data: await getProductoOptions() });
+};
 
 export const getProductosController: RequestHandler = async (_req, res) => {
     const productos = await getAllProductos();

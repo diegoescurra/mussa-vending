@@ -27,8 +27,9 @@ export const createConteo = async (conteo: CreateConteoDTO) => {
     const usuarios = await repository.lockUser(client, conteo.id_responsable);
     const responsable = usuarios[0];
     if (!responsable?.estado || !(responsable.rol === 'ADMIN'
+      || responsable.rol === 'BODEGUERO'
       || (conteo.id_camioneta !== undefined && responsable.rol === 'REPONEDOR' && responsable.id_usuario === idRepartidor))) {
-      throw new AppError('El responsable debe ser un ADMIN activo o el REPONEDOR activo asignado a la camioneta', 400);
+      throw new AppError('El responsable debe estar activo y tener permiso para contar en esta ubicación', 400);
     }
     const productos = await repository.lockProduct(client, conteo.id_producto);
     if (!productos.length) throw new AppError('Producto no encontrado', 404);

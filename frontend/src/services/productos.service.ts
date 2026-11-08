@@ -10,10 +10,6 @@ export type Producto = {
   id_proveedor: number | null;
 };
 
-export type ProductoConProveedor = Producto & {
-  proveedor_nombre: string | null;
-};
-
 export type CreateProductoDTO = {
   nombre: string;
   precio_venta: number;
@@ -22,10 +18,11 @@ export type CreateProductoDTO = {
 };
 
 export type UpdateProductoDTO = CreateProductoDTO;
+export type ProductoOpcion = Pick<Producto, 'id_producto' | 'nombre'>;
 
 export const productosService = {
   getAll: () => api.get<Producto[]>('/productos'),
-  getById: (id: number) => api.get<Producto>(`/productos/${id}`),
+  getOptions: () => api.get<ProductoOpcion[]>('/productos/opciones'),
   create: (producto: CreateProductoDTO) => api.post<Producto>('/productos', producto),
   update: (id: number, producto: UpdateProductoDTO) => api.put<Producto>(`/productos/${id}`, producto),
   delete: (id: number) => api.delete<void>(`/productos/${id}`),

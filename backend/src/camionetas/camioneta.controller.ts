@@ -11,8 +11,9 @@ const parseId = (value: unknown) => {
   return id;
 };
 
-export const getCamionetasController: RequestHandler = async (_req, res) => {
-  res.json({ status: 'success', data: await getAllCamionetas() });
+export const getCamionetasController: RequestHandler = async (req, res) => {
+  const rows = await getAllCamionetas();
+  res.json({ status: 'success', data: req.user!.rol === 'REPONEDOR' ? rows.filter(truck => truck.id_repartidor === req.user!.id_usuario) : rows });
 };
 
 export const getCamionetaController: RequestHandler = async (req, res) => {
@@ -43,6 +44,6 @@ export const getMovimientosCamionetaController: RequestHandler = async (req, res
 };
 
 export const createCargaCamionetaController: RequestHandler = async (req, res) => {
-  const movimiento = await createCargaCamioneta(parseId(req.params.id), validateCargaBody(req.body));
+  const movimiento = await createCargaCamioneta(parseId(req.params.id), validateCargaBody({ ...req.body, id_bodeguero: req.user!.id_usuario }));
   res.status(201).json({ status: 'success', data: movimiento });
 };

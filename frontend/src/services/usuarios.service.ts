@@ -11,6 +11,7 @@ export type Usuario = {
 };
 
 export type CreateUsuarioDTO = {
+  password: string;
   nombre: string;
   apellido: string;
   email: string;
@@ -18,6 +19,7 @@ export type CreateUsuarioDTO = {
 };
 
 export type UpdateUsuarioDTO = {
+  password?: string;
   nombre?: string;
   apellido?: string;
   email?: string;
@@ -27,7 +29,7 @@ export type UpdateUsuarioDTO = {
 
 export const usuariosService = {
   getAll: () => api.get<Usuario[]>('/usuarios'),
-  getById: (id: number) => api.get<Usuario>(`/usuarios/${id}`),
+  getReponedores: () => api.get<Pick<Usuario, 'id_usuario' | 'nombre' | 'apellido'>[]>('/usuarios/reponedores'),
   create: (usuario: CreateUsuarioDTO) => api.post<Usuario>('/usuarios', usuario),
   update: (id: number, usuario: UpdateUsuarioDTO) => api.put<Usuario>(`/usuarios/${id}`, usuario),
   delete: (id: number) => api.delete<void>(`/usuarios/${id}`),

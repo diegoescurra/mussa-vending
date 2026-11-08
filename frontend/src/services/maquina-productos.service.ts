@@ -37,7 +37,6 @@ export type MaquinaProductoDetalle = MaquinaProducto & {
 
 export const maquinaProductosService = {
   getAll: () => api.get<MaquinaProductoDetalle[]>('/maquina-productos'),
-  getById: (id: number) => api.get<MaquinaProductoDetalle>(`/maquina-productos/${id}`),
   create: (maquinaProducto: CreateMaquinaProductoDTO) =>
     api.post<MaquinaProducto>('/maquina-productos', maquinaProducto),
   update: (id: number, maquinaProducto: UpdateMaquinaProductoDTO) =>

@@ -1,3 +1,5 @@
+import { useConfirm } from '@/hooks/useConfirm';
+import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../../../components/PageHeader';
@@ -5,7 +7,7 @@ import { StateMessage } from '../../../components/StateMessage';
 import { DataTable } from '../../../components/table/DataTable';
 import { useInventarioMaquinas } from '../../../hooks/useInventarioMaquinas';
 import { useMaquinas } from '../../../hooks/useMaquinas';
-import { useProductos } from '../../../hooks/useProductos';
+import { useProductoOpciones } from '../../../hooks/useProductos';
 import type { MaquinaProductoDetalle } from '../../../services/maquina-productos.service';
 import { InventarioFormModal } from './InventarioFormModal';
 import { createInventarioColumns } from './inventario.columns';
@@ -20,9 +22,10 @@ import { MachineInventoryHeader } from './MachineInventoryHeader';
 import { useInventarioCrud } from './useInventarioCrud';
 
 export const InventarioPage = () => {
+  const confirm = useConfirm();
   const { data = [], isLoading, isError } = useInventarioMaquinas();
   const { data: maquinas = [], isLoading: isLoadingMaquinas } = useMaquinas();
-  const { data: productos = [], isLoading: isLoadingProductos } = useProductos();
+  const { data: productos = [], isLoading: isLoadingProductos } = useProductoOpciones();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedMachineId = searchParams.get('maquina') ?? '';
   const setSelectedMachineId = (id: string) => setSearchParams({ maquina: id });
@@ -30,7 +33,8 @@ export const InventarioPage = () => {
   const [editingItem, setEditingItem] = useState<MaquinaProductoDetalle | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const activeMachineId = selectedMachineId || (maquinas[0]?.id_maquina ? String(maquinas[0].id_maquina) : '');
+  const activeMachineId =
+    selectedMachineId || (maquinas[0]?.id_maquina ? String(maquinas[0].id_maquina) : '');
   const activeMachine = maquinas.find((maquina) => String(maquina.id_maquina) === activeMachineId);
   const selectedMachineItems = data.filter((item) => String(item.id_maquina) === activeMachineId);
   const selectedProductIds = new Set(selectedMachineItems.map((item) => item.id_producto));
@@ -42,7 +46,8 @@ export const InventarioPage = () => {
     setForm(emptyInventarioForm);
   };
 
-  const { createInventario, updateInventario, deleteInventario, isSaving, saveError, resetSave } = useInventarioCrud(closeModal);
+  const { createInventario, updateInventario, deleteInventario, isSaving, saveError, resetSave } =
+    useInventarioCrud(closeModal);
 
   const openCreateModal = () => {
     if (isSaving) return;
@@ -73,8 +78,8 @@ export const InventarioPage = () => {
     createInventario(inventarioFormToCreatePayload({ ...form, id_maquina: activeMachineId }));
   };
 
-  const handleDelete = (item: MaquinaProductoDetalle) => {
-    if (window.confirm(`¿Quitar "${item.producto_nombre}" de la máquina ${item.maquina_codigo}?`)) {
+  const handleDelete = async (item: MaquinaProductoDetalle) => {
+    if (await confirm(`¿Quitar "${item.producto_nombre}" de la máquina ${item.maquina_codigo}?`)) {
       deleteInventario(item.id_maquina_producto);
     }
   };
@@ -84,16 +89,16 @@ export const InventarioPage = () => {
       <PageHeader
         title="Inventario por máquina"
         description="Selecciona una máquina y añade productos con su stock inicial, capacidad y precio de venta."
-        actions={(
-          <button
+        actions={
+          <Button
             type="button"
             onClick={openCreateModal}
             disabled={!activeMachineId || availableProducts.length === 0}
-            className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            variant="default"
           >
             Añadir producto a esta máquina
-          </button>
-        )}
+          </Button>
+        }
       />
 
       <MachineInventoryHeader
@@ -105,9 +110,15 @@ export const InventarioPage = () => {
       />
 
       {isError ? (
-        <StateMessage title="No se pudo cargar el inventario" description="Puedes seleccionar máquinas, pero revisa que el endpoint /api/maquina-productos responda correctamente." />
+        <StateMessage
+          title="No se pudo cargar el inventario"
+          description="Revisa tu conexión y vuelve a intentarlo."
+        />
       ) : isLoading ? (
-        <StateMessage title="Cargando productos de la máquina" description="Mientras tanto puedes revisar la máquina seleccionada." />
+        <StateMessage
+          title="Cargando productos de la máquina"
+          description="Mientras tanto puedes revisar la máquina seleccionada."
+        />
       ) : (
         <DataTable
           columns={createInventarioColumns({ onEdit: openEditModal, onDelete: handleDelete })}

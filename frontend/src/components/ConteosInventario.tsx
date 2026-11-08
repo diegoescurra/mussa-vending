@@ -36,7 +36,7 @@ export const ConteosInventario = ({ idCamioneta }: { idCamioneta?: number }) => 
         <StateMessage title="No se pudieron cargar los conteos" description={conteos.error.message} />
       ) : (
         <>
-          <DataTable columns={columns} data={conteoRows} searchPlaceholder="Buscar en los conteos cargados..." emptyMessage="No hay conteos para mostrar." />
+          <DataTable loadedOnly columns={columns} data={conteoRows} searchPlaceholder="Buscar en los conteos cargados..." emptyMessage="No hay conteos para mostrar." />
           <HistoryLoadMore query={conteos} />
         </>
       )}

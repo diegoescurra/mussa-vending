@@ -1,3 +1,5 @@
+import { useConfirm } from '@/hooks/useConfirm';
+import { Button } from '@/components/ui/button';
 import { useRef, useState } from 'react';
 import { PageHeader } from '../../../components/PageHeader';
 import { StateMessage } from '../../../components/StateMessage';
@@ -11,6 +13,7 @@ import { useMaquinasCrud } from './useMaquinasCrud';
 import { toMaquinaPayload, validateMaquinaForm, type MaquinaFormErrors } from './maquinas.validation';
 
 export const MaquinasPage = () => {
+  const confirm = useConfirm();
   const { data = [], isLoading, isError } = useMaquinas();
   const [form, setForm] = useState<MaquinaForm>(emptyMaquinaForm);
   const [editingMaquina, setEditingMaquina] = useState<Maquina | null>(null);
@@ -26,10 +29,12 @@ export const MaquinasPage = () => {
     setErrors({});
   };
 
-  const { createMaquina, updateMaquina, deleteMaquina, isSaving, saveError, resetErrors } = useMaquinasCrud(() => {
-    savePending.current = false;
-    closeModal();
-  });
+  const { createMaquina, updateMaquina, deleteMaquina, isSaving, saveError, resetErrors } = useMaquinasCrud(
+    () => {
+      savePending.current = false;
+      closeModal();
+    },
+  );
 
   const openCreateModal = () => {
     resetErrors();
@@ -54,7 +59,11 @@ export const MaquinasPage = () => {
     if (Object.keys(nextErrors).length) return;
     const payload = toMaquinaPayload(form);
     savePending.current = true;
-    const options = { onSettled: () => { savePending.current = false; } };
+    const options = {
+      onSettled: () => {
+        savePending.current = false;
+      },
+    };
     if (editingMaquina) {
       updateMaquina({ id: editingMaquina.id_maquina, payload }, options);
       return;
@@ -63,28 +72,56 @@ export const MaquinasPage = () => {
     createMaquina(payload, options);
   };
 
-  const handleDelete = (maquina: Maquina) => {
-    if (window.confirm(`¿Eliminar la máquina "${maquina.nombre}"?`)) {
+  const handleDelete = async (maquina: Maquina) => {
+    if (await confirm(`¿Eliminar la máquina "${maquina.nombre}"?`)) {
       deleteMaquina(maquina.id_maquina);
     }
   };
 
-  if (isLoading) return <StateMessage title="Cargando máquinas" description="Estamos obteniendo el estado de tus máquinas." />;
-  if (isError) return <StateMessage title="No se pudieron cargar las máquinas" description="Revisa que el backend esté activo y vuelve a intentar." />;
+  if (isLoading)
+    return (
+      <StateMessage title="Cargando máquinas" description="Estamos obteniendo el estado de tus máquinas." />
+    );
+  if (isError)
+    return (
+      <StateMessage
+        title="No se pudieron cargar las máquinas"
+        description="Revisa que el backend esté activo y vuelve a intentar."
+      />
+    );
 
   return (
     <section>
       <PageHeader
         title="Máquinas"
         description="Visualiza dónde está cada máquina y su estado operativo actual."
-        actions={(
-          <button type="button" onClick={openCreateModal} className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
+        actions={
+          <Button type="button" onClick={openCreateModal} variant="default">
             Nueva máquina
-          </button>
-        )}
+          </Button>
+        }
       />
-      <DataTable columns={createMaquinaColumns({ onEdit: openEditModal, onDelete: handleDelete })} data={data} searchPlaceholder="Buscar máquina..." emptyMessage="No hay máquinas registradas" />
-      {isModalOpen ? <MaquinaFormModal form={form} editingMaquina={editingMaquina} isSaving={isSaving} errors={errors} saveError={saveError} onChange={(nextForm) => { setForm(nextForm); if (Object.keys(errors).length) setErrors(validateMaquinaForm(nextForm)); }} onSubmit={submitForm} onClose={closeModal} /> : null}
+      <DataTable
+        columns={createMaquinaColumns({ onEdit: openEditModal, onDelete: handleDelete })}
+        data={data}
+        searchPlaceholder="Buscar máquina..."
+        emptyMessage="No hay máquinas registradas"
+      />
+      {isModalOpen ? (
+        <MaquinaFormModal
+          form={form}
+          editingMaquina={editingMaquina}
+          isSaving={isSaving}
+          errors={errors}
+          saveError={saveError}
+          onChange={(nextForm) => {
+            setForm(nextForm);
+            if (Object.keys(errors).length) setErrors(validateMaquinaForm(nextForm));
+          }}
+          onSubmit={submitForm}
+          onClose={closeModal}
+        />
+      ) : null}
     </section>
   );
 };

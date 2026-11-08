@@ -4,12 +4,14 @@ import {
     deleteUsuarioController,
     getUsuarioByIdController,
     getUsuariosController,
+    getReponedoresController,
     updateUsuarioController,
 } from './usuario.controller.js';
 
 const router = Router();
 
 router.get('/usuarios', getUsuariosController);
+router.get('/usuarios/reponedores', getReponedoresController);
 router.get('/usuarios/:id', getUsuarioByIdController);
 router.post('/usuarios', createUsuarioController);
 router.put('/usuarios/:id', updateUsuarioController);

@@ -13,6 +13,6 @@ export const getConteosController: RequestHandler = async (req, res) => {
 };
 
 export const createConteoController: RequestHandler = async (req, res) => {
-  const data = await createConteo(validateConteoBody(req.body));
+  const data = await createConteo(validateConteoBody({ ...req.body, id_responsable: req.user!.id_usuario }));
   res.status(201).json({ status: 'success', data });
 };

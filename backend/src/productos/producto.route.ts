@@ -4,6 +4,7 @@ import {
   deleteProductoController,
   getProductoByIdController,
   getProductosController,
+  getProductoOptionsController,
   updateProductoController,
 } from "./producto.controller.js";
 
@@ -12,6 +13,7 @@ import {
 const router = Router();
 
 router.get('/productos', getProductosController);
+router.get('/productos/opciones', getProductoOptionsController);
 router.get('/productos/:id', getProductoByIdController);
 router.post('/productos', createProductoController);
 router.put('/productos/:id', updateProductoController);

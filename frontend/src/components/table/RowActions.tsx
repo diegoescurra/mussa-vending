@@ -1,18 +1,31 @@
-type RowActionsProps = {
-  onEdit: () => void;
-  onDelete: () => void;
-  deleteDisabled?: boolean;
-};
-
-export const RowActions = ({ onEdit, onDelete, deleteDisabled = false }: RowActionsProps) => {
+import { Pencil, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+type RowActionsProps = { onEdit: () => void; onDelete: () => void; deleteDisabled?: boolean };
+export function RowActions({ onEdit, onDelete, deleteDisabled = false }: RowActionsProps) {
   return (
-    <div className="flex gap-2">
-      <button type="button" onClick={onEdit} className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100">
-        Editar
-      </button>
-      <button type="button" onClick={onDelete} disabled={deleteDisabled} className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">
-        Eliminar
-      </button>
+    <div className="flex items-center justify-end gap-1">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        onClick={onEdit}
+        aria-label="Editar"
+        title="Editar"
+      >
+        <Pencil className="size-4" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        onClick={onDelete}
+        disabled={deleteDisabled}
+        aria-label="Eliminar"
+        title="Eliminar"
+        className="text-muted-foreground hover:bg-red-50 hover:text-red-600"
+      >
+        <Trash2 className="size-4" />
+      </Button>
     </div>
   );
-};
+}

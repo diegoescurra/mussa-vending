@@ -8,7 +8,7 @@ jest.mock('../config/db.js', () => ({
   default: { query: jest.fn(), connect: jest.fn() },
 }));
 
-const app = createTestApp(router);
+const app = createTestApp(router, { id_usuario: 3 });
 const query = jest.fn();
 const release = jest.fn();
 const camioneta = { id_camioneta: 1, nombre: 'Camioneta 1', patente: 'ABCD12', id_repartidor: 2, estado: true };
@@ -82,7 +82,6 @@ describe('camioneta inventory and deliveries', () => {
 
   it.each([
     {},
-    { ...payload, id_bodeguero: 0 },
     { ...payload, id_producto: '5' },
     { ...payload, cantidad: 0 },
     { ...payload, cantidad: -1 },

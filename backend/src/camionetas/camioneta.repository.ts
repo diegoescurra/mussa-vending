@@ -1,6 +1,7 @@
 import pool from '../config/db.js';
 
-const camionetaSelect = `SELECT c.id_camioneta, c.patente, c.nombre, c.id_repartidor, c.estado, c.fecha_creacion, u.nombre AS repartidor_nombre, u.apellido AS repartidor_apellido
+const camionetaSelect = `SELECT c.id_camioneta, c.patente, c.nombre, c.id_repartidor, c.estado, c.fecha_creacion, u.nombre AS repartidor_nombre, u.apellido AS repartidor_apellido,
+  (u.estado AND u.rol = 'REPONEDOR') AS repartidor_activo
   FROM camionetas c JOIN usuarios u ON u.id_usuario = c.id_repartidor`;
 
 export const findAll = async () => {

@@ -1,3 +1,5 @@
+import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/native-select';
 import { useId } from 'react';
 
 type SelectOption = {
@@ -32,9 +34,9 @@ export const SelectField = ({
 }: SelectFieldProps) => {
   const descriptionId = useId();
   return (
-    <label className={`grid gap-2 text-sm font-medium text-slate-700 ${className}`}>
+    <Label className={`grid gap-2 text-sm font-medium text-slate-700 ${className}`}>
       {label}
-      <select
+      <NativeSelect
         required={required}
         disabled={disabled}
         aria-label={label}
@@ -42,7 +44,7 @@ export const SelectField = ({
         aria-invalid={Boolean(error)}
         aria-describedby={error || hint ? descriptionId : undefined}
         onChange={(event) => onChange(event.target.value)}
-        className={`min-w-0 rounded-2xl border px-4 py-3 outline-none focus:ring-4 disabled:bg-slate-100 ${error ? 'border-red-400 focus:border-red-500 focus:ring-red-100' : 'border-slate-200 focus:border-blue-500 focus:ring-blue-100'}`}
+        className="w-full bg-white"
       >
         {placeholder ? <option value="">{placeholder}</option> : null}
         {options.map((option) => (
@@ -50,8 +52,12 @@ export const SelectField = ({
             {option.label}
           </option>
         ))}
-      </select>
-      {error || hint ? <span id={descriptionId} className={`text-xs ${error ? 'text-red-700' : 'text-amber-700'}`}>{error || hint}</span> : null}
-    </label>
+      </NativeSelect>
+      {error || hint ? (
+        <span id={descriptionId} className={`text-xs ${error ? 'text-red-700' : 'text-amber-700'}`}>
+          {error || hint}
+        </span>
+      ) : null}
+    </Label>
   );
 };

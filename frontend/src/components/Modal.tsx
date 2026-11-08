@@ -1,5 +1,7 @@
-import type { ReactNode } from 'react';
-
+import { useRef, type ReactNode } from 'react';
+import { X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 type ModalProps = {
   title: string;
   description?: string;
@@ -7,27 +9,41 @@ type ModalProps = {
   onClose: () => void;
   closeDisabled?: boolean;
 };
-
-export const Modal = ({ title, description, children, onClose, closeDisabled = false }: ModalProps) => {
+export function Modal({ title, description, children, onClose, closeDisabled = false }: ModalProps) {
+  const returnFocus = useRef<HTMLElement | null>(null);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-      <div className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-6">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <h3 className="text-xl font-bold text-slate-950">{title}</h3>
-            {description ? <p className="mt-1 text-sm text-slate-600">{description}</p> : null}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={closeDisabled}
-            className="rounded-full border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Cerrar
-          </button>
-        </div>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !closeDisabled) onClose();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[90dvh] overflow-y-auto bg-white sm:max-w-2xl"
+        onPointerDownOutside={(event) => event.preventDefault()}
+        onOpenAutoFocus={() => { returnFocus.current = document.activeElement as HTMLElement; }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          returnFocus.current?.focus();
+        }}
+      >
+        <DialogHeader className="mb-2 pr-8">
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description ?? 'Completa los datos y guarda los cambios.'}</DialogDescription>
+        </DialogHeader>
         {children}
-      </div>
-    </div>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="absolute right-3 top-3"
+          disabled={closeDisabled}
+          onClick={onClose}
+          aria-label="Cerrar"
+        >
+          <X />
+        </Button>
+      </DialogContent>
+    </Dialog>
   );
-};
+}

@@ -9,6 +9,7 @@ export type Camioneta = {
   fecha_creacion: string;
   repartidor_nombre: string;
   repartidor_apellido: string;
+  repartidor_activo: boolean;
 };
 
 export type CamionetaPayload = {
@@ -57,8 +58,8 @@ export type CamionetaMovimientoDetalle = CamionetaMovimiento & {
 export const camionetasService = {
   getAll: () => api.get<Camioneta[]>('/camionetas'),
   getById: (id: number) => api.get<Camioneta>(`/camionetas/${id}`),
-  create: (payload: CamionetaPayload) => api.post<Omit<Camioneta, 'repartidor_nombre' | 'repartidor_apellido'>>('/camionetas', payload),
-  update: (id: number, payload: CamionetaPayload) => api.put<Omit<Camioneta, 'repartidor_nombre' | 'repartidor_apellido'>>(`/camionetas/${id}`, payload),
+  create: (payload: CamionetaPayload) => api.post<Omit<Camioneta, 'repartidor_nombre' | 'repartidor_apellido' | 'repartidor_activo'>>('/camionetas', payload),
+  update: (id: number, payload: CamionetaPayload) => api.put<Omit<Camioneta, 'repartidor_nombre' | 'repartidor_apellido' | 'repartidor_activo'>>(`/camionetas/${id}`, payload),
   delete: (id: number) => api.delete<void>(`/camionetas/${id}`),
   getInventario: (id: number) => api.get<CamionetaProducto[]>(`/camionetas/${id}/inventario`),
   getMovimientos: (id: number, antesDe: number | null) => api.get<HistoryPage<CamionetaMovimientoDetalle>>(

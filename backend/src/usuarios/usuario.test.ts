@@ -37,7 +37,7 @@ describe('usuarios routes', () => {
   });
 
   it('POST /api/usuarios creates a usuario', async () => {
-    const payload = { nombre: 'Juan', apellido: 'Pérez', email: 'juan@mussa.cl', password_hash: 'pendiente', rol: 'REPONEDOR' };
+    const payload = { nombre: 'Juan', apellido: 'Pérez', email: 'juan@mussa.cl', password: 'Mussa-test-password-123', rol: 'REPONEDOR' };
     mockedService.createUsuario.mockResolvedValue(usuario);
 
     const response = await request(app).post('/api/usuarios').send(payload);
@@ -47,18 +47,18 @@ describe('usuarios routes', () => {
     expect(mockedService.createUsuario).toHaveBeenCalledWith(payload);
   });
 
-  it('POST /api/usuarios uses password_hash pendiente by default', async () => {
+  it('POST /api/usuarios rejects an account without a password', async () => {
     const payload = { nombre: 'Juan', apellido: 'Pérez', email: 'juan@mussa.cl', rol: 'REPONEDOR' };
     mockedService.createUsuario.mockResolvedValue(usuario);
 
     const response = await request(app).post('/api/usuarios').send(payload);
 
-    expect(response.status).toBe(201);
-    expect(mockedService.createUsuario).toHaveBeenCalledWith({ ...payload, password_hash: 'pendiente' });
+    expect(response.status).toBe(400);
+    expect(mockedService.createUsuario).not.toHaveBeenCalled();
   });
 
   it('POST /api/usuarios returns 400 for invalid rol', async () => {
-    const payload = { nombre: 'Juan', apellido: 'Pérez', email: 'juan@mussa.cl', password_hash: 'pendiente', rol: 'OPERADOR' };
+    const payload = { nombre: 'Juan', apellido: 'Pérez', email: 'juan@mussa.cl', password: 'Mussa-test-password-123', rol: 'OPERADOR' };
 
     const response = await request(app).post('/api/usuarios').send(payload);
 

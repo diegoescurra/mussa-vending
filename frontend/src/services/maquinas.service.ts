@@ -35,7 +35,6 @@ export type UpdateMaquinaDTO = CreateMaquinaDTO;
 
 export const maquinasService = {
   getAll: () => api.get<Maquina[]>('/maquinas'),
-  getById: (id: number) => api.get<Maquina>(`/maquinas/${id}`),
   create: (maquina: CreateMaquinaDTO) => api.post<Maquina>('/maquinas', maquina),
   update: (id: number, maquina: UpdateMaquinaDTO) => api.put<Maquina>(`/maquinas/${id}`, maquina),
   delete: (id: number) => api.delete<void>(`/maquinas/${id}`),

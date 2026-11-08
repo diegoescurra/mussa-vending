@@ -4,13 +4,19 @@ import {
     createUsuario,
     deleteUsuario,
     getAllUsuarios,
+    getActiveReponedores,
     getUsuarioById,
     updateUsuario,
 } from './usuario.service.js';
 import type { CreateUsuarioDTO, UpdateUsuarioDTO } from './usuario.dto.js';
 import type { RolUsuario } from './usuario.type.js';
+import { validatePassword } from '../auth/password.js';
 
-const rolesValidos: RolUsuario[] = ['ADMIN', 'REPONEDOR'];
+const rolesValidos: RolUsuario[] = ['ADMIN', 'REPONEDOR', 'BODEGUERO'];
+
+export const getReponedoresController: RequestHandler = async (_req, res) => {
+    res.json({ status: 'success', data: await getActiveReponedores() });
+};
 
 const isValidRol = (rol: unknown): rol is RolUsuario => typeof rol === 'string' && rolesValidos.includes(rol as RolUsuario);
 
@@ -55,9 +61,10 @@ export const getUsuarioByIdController: RequestHandler = async (req, res) => {
 };
 
 export const createUsuarioController: RequestHandler = async (req, res) => {
-    const { nombre, apellido, email, password_hash = 'pendiente', rol } = req.body ?? {};
+    const { nombre, apellido, email, password, rol } = req.body ?? {};
+    if ('password_hash' in (req.body ?? {})) throw new AppError('Envía password; el hash lo genera el servidor.', 400);
 
-    if (!nombre || !apellido || !email || !password_hash || !rol) {
+    if (!nombre || !apellido || !email || !rol) {
         throw new AppError('Todos los campos son obligatorios', 400);
     }
 
@@ -65,12 +72,13 @@ export const createUsuarioController: RequestHandler = async (req, res) => {
         throw new AppError('Rol invalido', 400);
     }
     validatePersonalFields({ nombre, apellido, email });
+    validatePassword(password);
 
     const newUsuario = await createUsuario({
         nombre: nombre.trim(),
         apellido: apellido.trim(),
-        email: email.trim(),
-        password_hash,
+        email: email.trim().toLowerCase(),
+        password,
         rol,
     } as CreateUsuarioDTO);
 
@@ -82,13 +90,18 @@ export const createUsuarioController: RequestHandler = async (req, res) => {
 
 export const updateUsuarioController: RequestHandler = async (req, res) => {
     const id = parseId(req.params.id);
-    const { nombre, apellido, email, password_hash, rol, estado } = req.body ?? {};
+    const { nombre, apellido, email, password, rol, estado } = req.body ?? {};
+    if ('password_hash' in (req.body ?? {})) throw new AppError('Envía password; el hash lo genera el servidor.', 400);
+    if (password !== undefined) validatePassword(password);
+    if (req.user?.id_usuario === id && (estado === false || (rol !== undefined && rol !== 'ADMIN'))) {
+        throw new AppError('No puedes desactivar tu propia cuenta ni quitarte el rol de administrador.', 400);
+    }
 
     if (
         nombre === undefined &&
         apellido === undefined &&
         email === undefined &&
-        password_hash === undefined &&
+        password === undefined &&
         rol === undefined &&
         estado === undefined
     ) {
@@ -104,8 +117,8 @@ export const updateUsuarioController: RequestHandler = async (req, res) => {
     const updatedUsuario = await updateUsuario({
         nombre: nombre?.trim(),
         apellido: apellido?.trim(),
-        email: email?.trim(),
-        password_hash,
+        email: email?.trim().toLowerCase(),
+        password,
         rol,
         estado,
     } as UpdateUsuarioDTO, id);
@@ -118,6 +131,7 @@ export const updateUsuarioController: RequestHandler = async (req, res) => {
 
 export const deleteUsuarioController: RequestHandler = async (req, res) => {
     const id = parseId(req.params.id);
+    if (req.user?.id_usuario === id) throw new AppError('No puedes eliminar tu propia cuenta.', 400);
     await deleteUsuario(id);
 
     res.status(204).json({

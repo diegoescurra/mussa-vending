@@ -1,3 +1,4 @@
+import { Input } from "@/components/ui/input";
 import { useDeferredValue, useState } from 'react';
 import type { Maquina } from '../services/maquinas.service';
 
@@ -34,7 +35,7 @@ export const MachineCombobox = ({ machines, selectedMachineId, isLoading = false
     <div className="relative">
       <label className="grid gap-2 text-sm font-semibold text-slate-700">
         Buscar máquina
-        <input
+        <Input
           value={isOpen ? query : selectedMachine ? `${selectedMachine.codigo} - ${selectedMachine.nombre} (${selectedMachine.ubicacion})` : query}
           onChange={(event) => {
             setQuery(event.target.value);
@@ -43,12 +44,12 @@ export const MachineCombobox = ({ machines, selectedMachineId, isLoading = false
           onFocus={() => setIsOpen(true)}
           disabled={isLoading || machines.length === 0}
           placeholder={isLoading ? 'Cargando máquinas...' : 'Busca por código, nombre o ubicación'}
-          className="rounded-2xl border border-slate-200 px-4 py-3 text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:bg-slate-100"
+          className="bg-white"
         />
       </label>
 
       {isOpen ? (
-        <div className="absolute z-30 mt-2 max-h-80 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl">
+        <div className="absolute z-30 mt-2 max-h-80 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-2xl">
           {filteredMachines.length === 0 ? (
             <div className="px-3 py-4 text-sm text-slate-500">No encontramos máquinas con ese texto.</div>
           ) : (
